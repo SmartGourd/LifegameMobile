@@ -9,7 +9,12 @@ import cz.zlehcito.network.WebSocketManager
 import org.json.JSONObject
 
 @Composable
-fun ResultsPage(webSocketManager: WebSocketManager) {
+fun ResultsPage(
+    webSocketManager: WebSocketManager,
+    navigateToPage: (String, Int, Int) -> Unit,
+    idGame: Int,
+    idUser: Int,
+) {
     var resultsData by remember { mutableStateOf("Waiting for results...") }
 
     LaunchedEffect(Unit) {

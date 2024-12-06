@@ -59,4 +59,5 @@ dependencies {
 
     implementation(libs.okhttp)
     implementation (libs.gson)
+    implementation (libs.androidx.lifecycle.runtime.compose)
 }

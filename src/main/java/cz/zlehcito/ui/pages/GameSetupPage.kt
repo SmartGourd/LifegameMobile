@@ -5,67 +5,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cz.zlehcito.model.GameSetup
-import cz.zlehcito.model.GameSettings
-import cz.zlehcito.model.Player
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cz.zlehcito.model.modelHandlers.GameSetupModelHandler
 import cz.zlehcito.network.WebSocketManager
-import org.json.JSONObject
 
 @Composable
 fun GameSetupPage(
-    webSocketManager: WebSocketManager, navigateToPage: (String) -> Unit
+    webSocketManager: WebSocketManager,
+    navigateToPage: (String, Int, Int) -> Unit,
+    idGame: Int
 ) {
-    var gameSetup by remember { mutableStateOf<GameSetup?>(null) }
-    var playerName by remember { mutableStateOf("") }
-    var joinMessage by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) {
-        webSocketManager.connect(object : okhttp3.WebSocketListener() {
-            override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
-                val response = JSONObject(text)
-
-                when (response.getString("type")) {
-                    "GET_GAME" -> {
-                        val gameData = response.getJSONObject("data").getJSONObject("game")
-                        gameSetup = GameSetup(
-                            gameTypeSpecificSettings = GameSettings(
-                                roundCount = gameData.getJSONObject("gameTypeSpecificSettings").getInt("roundCount"),
-                                currentRound = gameData.getJSONObject("gameTypeSpecificSettings").getInt("currentRound"),
-                                inputType = gameData.getJSONObject("gameTypeSpecificSettings").getString("inputType")
-                            ),
-                            players = gameData.getJSONArray("players").let { playerArray ->
-                                List(playerArray.length()) { i ->
-                                    Player(playerArray.getJSONObject(i).getString("inGameName"))
-                                }
-                            },
-                            termDefinitionPairs = emptyList(), // Add if applicable
-                            idGame = gameData.getInt("idGame"),
-                            name = gameData.getString("name"),
-                            gameStatus = gameData.getString("gameStatus"),
-                            gameType = gameData.getString("gameType"),
-                            playerCount = gameData.getInt("playerCount"),
-                            maxPlayers = gameData.getInt("maxPlayers")
-                        )
-                    }
-
-                    "JOIN_GAME" -> {
-                        joinMessage = "You joined the game!"
-                    }
-
-                    "START_GAME" -> {
-                        navigateToPage("GamePage")
-                    }
-                }
-            }
-        })
-
-        // Send GET_GAME request to the server
-        val setupRequest = JSONObject().apply {
-            put("type", "GET_GAME")
-            put("data", 267) // Replace 24 with your game ID
-        }
-        webSocketManager.sendMessage(setupRequest)
+    // Initialize GameSetupModelHandler and persist across recompositions
+    val gameSetupModelHandler = remember {
+        GameSetupModelHandler(webSocketManager, navigateToPage, idGame)
     }
+
+    // Collect the game setup state from the model handler
+    val gameSetupState by gameSetupModelHandler.gameSetupState.collectAsStateWithLifecycle()
+    val gameKey by gameSetupModelHandler.gameKey.collectAsStateWithLifecycle()
+    var playerName by remember { mutableStateOf("") }
 
     Scaffold { innerPadding ->
         Column(
@@ -77,7 +35,8 @@ fun GameSetupPage(
             Text("Game Setup", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(16.dp))
 
-            gameSetup?.let { setup ->
+            // Display game setup information if available
+            gameSetupState?.let { setup ->
                 Text("Name: ${setup.name}")
                 Text("Type: ${setup.gameType}")
                 Text("Status: ${setup.gameStatus}")
@@ -98,36 +57,47 @@ fun GameSetupPage(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Input field for player name
-            OutlinedTextField(
-                value = playerName,
-                onValueChange = { playerName = it },
-                label = { Text("Enter your name") },
-                modifier = Modifier.fillMaxWidth()
-            )
 
+
+            gameKey.let { gameKey ->
+                if (gameKey.idUser.isEmpty() || gameKey.keyType == "Invalid") {
+                    // Input field for player name
+                    OutlinedTextField(
+                        value = playerName,
+                        onValueChange = { playerName = it },
+                        label = { Text("Enter your name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            gameSetupModelHandler.sendJoinGameRequest(playerName)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Join Game")
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Leave Game")
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Join Game button
-            Button(
-                onClick = {
-                    val joinRequest = JSONObject().apply {
-                        put("type", "JOIN_GAME")
-                        put("data", JSONObject().apply {
-                            put("IdGame", gameSetup?.idGame ?: 24) // Replace 24 with your game ID
-                            put("PlayerName", playerName)
-                        })
-                    }
-                    webSocketManager.sendMessage(joinRequest)
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Join Game")
-            }
-
-            if (joinMessage.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(joinMessage, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            // Back to Lobby button
+            Button(onClick = {
+                gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser)
+                navigateToPage("Lobby", 0, 0)
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text("Back to Lobby")
             }
         }
     }

@@ -1,4 +1,4 @@
-package cz.zlehcito.model
+package cz.zlehcito.model.dtos
 
 data class Game(
     val idGame: Int,

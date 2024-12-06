@@ -1,78 +1,140 @@
 package cz.zlehcito.ui.pages
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.zlehcito.network.WebSocketManager
-import cz.zlehcito.model.Game
-import cz.zlehcito.model.GameResponse
-import com.google.gson.Gson
+import cz.zlehcito.model.dtos.Game
+import cz.zlehcito.model.modelHandlers.LobbyModelHandler
 
 @Composable
-fun LobbyPage(webSocketManager: WebSocketManager, navigateToPage: (String) -> Unit) {
-    var gamesList by remember { mutableStateOf<List<Game>>(emptyList()) }
-
-    LaunchedEffect(Unit) {
-        webSocketManager.connect(object : okhttp3.WebSocketListener() {
-            override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
-                gamesList = parseJson(text)
-            }
-        })
-
-        // Send the GET_GAMES request
-        val json = org.json.JSONObject().apply { put("type", "GET_GAMES") }
-        webSocketManager.sendMessage(json)
-    }
+fun LobbyPage(
+    webSocketManager: WebSocketManager,
+    navigateToPage: (String, Int, Int)  -> Unit
+) {
+    val lobbyModelHandler = remember { LobbyModelHandler(webSocketManager) }
+    val gamesList by lobbyModelHandler.gamesList.collectAsStateWithLifecycle()
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredGamesList = gamesList.filter { it.name.contains(searchQuery, ignoreCase = true) }
 
     Scaffold { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
             Text(
-                text = "Games Lobby",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(16.dp)
-            )
-
-            if (gamesList.isNotEmpty()) {
-                GamesList(games = gamesList, onGameClick = { gameId ->
-                    // Navigate to the game page (or setup page)
-                    navigateToPage("GameSetup")
-                })
-            } else {
-                Text(
-                    text = "No games available.",
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun GamesList(games: List<Game>, onGameClick: (Int) -> Unit) {
-    Column(modifier = Modifier.padding(16.dp)) {
-        games.forEach { game ->
-            Card(
+                text = "Lobby",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
-                onClick = { onGameClick(game.idGame) } // Pass game ID when clicked
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "Game: ${game.name} (${game.gameType})")
-                    Text(text = "Status: ${game.gameStatus}")
-                    Text(text = "Players: ${game.playerCount} / ${game.maxPlayers}")
+                    .padding(top = 30.dp, bottom = 16.dp)
+            )
+
+            SearchBar(
+                searchQuery = searchQuery,
+                onQueryChange = { searchQuery = it }
+            )
+
+            if (gamesList.isEmpty()) {
+                Text(
+                    text = "Loading games ...",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else if (filteredGamesList.isEmpty()) {
+                Text(
+                    text = "Loading games ...",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    itemsIndexed(filteredGamesList) { index, game ->
+                        GameItem(
+                            game = game,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                                .clickable { navigateToPage("GameSetup", game.idGame, 0)},
+                            backgroundColor = if (index % 2 == 0) Color(0xFFBBDEFB) else Color(0xFFE1F5FE)
+
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-// Function to parse JSON response
-private fun parseJson(response: String): List<Game> {
-    val gson = Gson()
-    val gameResponse = gson.fromJson(response, GameResponse::class.java)
-    return gameResponse.data.games
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+    ) {
+        TextField(
+            value = searchQuery,
+            onValueChange = onQueryChange,
+            placeholder = { Text(text = "Search games ...") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White, RoundedCornerShape(6.dp)),
+            singleLine = true,
+            colors = TextFieldDefaults.textFieldColors(
+                focusedTextColor = Color.Black,
+                cursorColor = Color(0xFFE1F5FE),
+                focusedIndicatorColor = Color(0xFF2D7EC6), // Bottom border when focused
+                unfocusedIndicatorColor = Color(0xFF75BDFF), // Bottom border when not focused
+            )
+        )
+    }
+}
+
+
+@Composable
+fun GameItem(game: Game, modifier: Modifier = Modifier, backgroundColor: Color) {
+    Row(
+        modifier = modifier
+            .background(backgroundColor, RoundedCornerShape(6.dp))
+            .padding(16.dp)
+            .height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = game.name,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp)
+        )
+        Text(
+            text = "Players: ${game.playerCount}/${game.maxPlayers}",
+            color = Color(0xFF37474F),
+            fontSize = 16.sp,
+            modifier = Modifier.padding(end = 16.dp)
+        )
+        Text(
+            text = "Type: ${game.gameType}",
+            color = Color(0xFF37474F),
+            fontSize = 16.sp
+        )
+    }
 }

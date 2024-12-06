@@ -7,23 +7,36 @@ import androidx.compose.runtime.*
 import cz.zlehcito.network.WebSocketManager
 import cz.zlehcito.ui.pages.*
 
+/*
+Questions
+How can I put optional parameters to navigateToPage
+ */
+
+
 class MainActivity : ComponentActivity() {
     private val webSocketManager = WebSocketManager("wss://zlehcito.cz/ws")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            // Manage current page and optional parameters with state
             var currentPage by remember { mutableStateOf("Lobby") }
+            var idGame by remember { mutableIntStateOf(0) }
+            var idUser by remember { mutableIntStateOf(0) }
 
-            val navigateToPage: (String) -> Unit = { page ->
+            // Navigation function with optional parameters
+            val navigateToPage: (String, Int, Int) -> Unit = { page, gameId, userId ->
                 currentPage = page
+                idGame = gameId
+                idUser = userId
             }
 
+            // Render pages based on the current state
             when (currentPage) {
                 "Lobby" -> LobbyPage(webSocketManager, navigateToPage)
-                "GameSetup" -> GameSetupPage(webSocketManager, navigateToPage)
-                "Game" -> GamePage(webSocketManager)
-                "Results" -> ResultsPage(webSocketManager)
+                "GameSetup" -> GameSetupPage(webSocketManager, navigateToPage, idGame)
+                "Game" -> GamePage(webSocketManager, navigateToPage, idGame, idUser)
+                "Results" -> ResultsPage(webSocketManager, navigateToPage, idGame, idUser)
             }
         }
     }
@@ -33,3 +46,4 @@ class MainActivity : ComponentActivity() {
         webSocketManager.disconnect()
     }
 }
+

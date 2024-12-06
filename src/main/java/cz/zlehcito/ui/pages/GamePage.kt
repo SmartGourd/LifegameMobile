@@ -9,7 +9,12 @@ import cz.zlehcito.network.WebSocketManager
 import org.json.JSONObject
 
 @Composable
-fun GamePage(webSocketManager: WebSocketManager) {
+fun GamePage(
+    webSocketManager: WebSocketManager,
+    navigateToPage: (String, Int, Int) -> Unit,
+    idGame: Int,
+    idUser: Int,
+) {
     var gameData by remember { mutableStateOf("Waiting for game data...") }
 
     LaunchedEffect(Unit) {
