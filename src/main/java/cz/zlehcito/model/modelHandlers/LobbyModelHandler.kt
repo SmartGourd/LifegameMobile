@@ -18,7 +18,14 @@ class LobbyModelHandler(
         // Connect to WebSocket and set up listener
         webSocketManager.connect(object : okhttp3.WebSocketListener() {
             override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
-                _gamesList.value = parseGamesListJson(text)
+                val response = JSONObject(text)
+
+                when (response.getString("type")) {
+                    "GET_GAMES" -> {
+                        _gamesList.value = parseGamesListJson(text)
+                    }
+                }
+
             }
         })
 
