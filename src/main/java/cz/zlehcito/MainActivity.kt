@@ -3,16 +3,14 @@ package cz.zlehcito
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import cz.zlehcito.model.viewModel.AppStateViewModel
+import cz.zlehcito.model.viewModel.AppStateViewModelFactory
 import cz.zlehcito.network.WebSocketManager
 import cz.zlehcito.ui.pages.*
-
-/*
-Questions
-How can I put optional parameters to navigateToPage
- */
-
 
 class MainActivity : ComponentActivity() {
     private val webSocketManager = WebSocketManager("wss://zlehcito.cz/ws")
@@ -21,33 +19,30 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         webSocketManager.connect()
 
-        setContent {
-            // Manage current page and optional parameters with state
-            var currentPage by rememberSaveable { mutableStateOf("Lobby") }
-            var idGame by rememberSaveable { mutableIntStateOf(0) }
-            var idUser by rememberSaveable { mutableIntStateOf(0) }
+        val appStateViewModel: AppStateViewModel by lazy {
+            AppStateViewModelFactory(
+                webSocketManager = webSocketManager,
+                idGame = 0,
+                idUser = "",
+                mistakesDone = arrayOf()
+            ).create(AppStateViewModel::class.java)
+        }
 
-            // Navigation function with optional parameters
-            val navigateToPage: (String, Int, Int) -> Unit = { page, gameId, userId ->
+        setContent {
+            val appState = appStateViewModel.appState
+            var currentPage by rememberSaveable { mutableStateOf("Lobby") }
+
+            val navigateToPage: (String) -> Unit = { page ->
                 currentPage = page
-                idGame = gameId
-                idUser = userId
             }
 
-            // Render pages based on the current state
+            // Render pages based on the current page
             when (currentPage) {
-                "Lobby" -> LobbyPage(webSocketManager, navigateToPage)
-                "GameSetup" -> GameSetupPage(webSocketManager, navigateToPage, idGame)
-                "Game" -> GamePage(webSocketManager, navigateToPage, idGame, idUser)
-                "Results" -> ResultsPage(webSocketManager, navigateToPage, idGame, idUser)
+                "Lobby" -> LobbyPage(appState, navigateToPage)
+                "GameSetup" -> GameSetupPage(appState, navigateToPage)
+                "Game" -> GamePage(appState, navigateToPage)
+                "Results" -> ResultsPage(appState, navigateToPage)
             }
         }
     }
-
-
-    override fun onDestroy() {
-        super.onDestroy()
-        //webSocketManager.disconnect()
-    }
 }
-

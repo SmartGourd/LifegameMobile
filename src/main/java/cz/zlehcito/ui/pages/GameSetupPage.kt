@@ -8,29 +8,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cz.zlehcito.model.appState.AppState
 import cz.zlehcito.model.viewModel.GameSetupViewModel
 import cz.zlehcito.model.viewModel.GameSetupViewModelFactory
-import cz.zlehcito.network.WebSocketManager
 
 @Composable
 fun GameSetupPage(
-    webSocketManager: WebSocketManager,
-    navigateToPage: (String, Int, Int) -> Unit,
-    idGame: Int
+    appState: AppState,
+    navigateToPage: (String) -> Unit
 ) {
-    // Initialize GameSetupModelHandler and persist across recompositions
-    /*
-    val gameSetupModelHandler = remember {
-        GameSetupModelHandler(webSocketManager, navigateToPage, idGame)
-    }
-    */
     val viewModel: GameSetupViewModel = viewModel(
-        factory = GameSetupViewModelFactory(webSocketManager, navigateToPage, idGame)
+        factory = GameSetupViewModelFactory(appState, navigateToPage)
     )
     val gameSetupModelHandler = viewModel.gameSetupModelHandler
     gameSetupModelHandler.sendSubscriptionPutGameSetupRequest()
+    gameSetupModelHandler.sendGetGameRequest()
 
-    // Collect the game setup state from the model handler
     val gameSetupState by gameSetupModelHandler.gameSetupState.collectAsStateWithLifecycle()
     val gameKey by gameSetupModelHandler.gameKey.collectAsStateWithLifecycle()
     var playerName by rememberSaveable { mutableStateOf("") }
@@ -105,7 +98,7 @@ fun GameSetupPage(
             // Back to Lobby button
             Button(onClick = {
                 gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser)
-                navigateToPage("Lobby", 0, 0)
+                navigateToPage("Lobby")
             }, modifier = Modifier.fillMaxWidth()) {
                 Text("Back to Lobby")
             }

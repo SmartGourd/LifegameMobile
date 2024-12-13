@@ -6,15 +6,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cz.zlehcito.network.WebSocketManager
+import cz.zlehcito.model.appState.AppState
 import org.json.JSONObject
 
 @Composable
 fun GamePage(
-    webSocketManager: WebSocketManager,
-    navigateToPage: (String, Int, Int) -> Unit,
-    idGame: Int,
-    idUser: Int,
+    appState: AppState,
+    navigateToPage: (String) -> Unit,
 ) {
     var gameData by rememberSaveable { mutableStateOf("Waiting for game data...") }
 
@@ -24,7 +22,7 @@ fun GamePage(
         val gameRequest = JSONObject()
         gameRequest.put("type", "GET_GAME")
         gameRequest.put("data", 24)
-        webSocketManager.sendMessage(gameRequest)
+        appState.webSocketManager.sendMessage(gameRequest)
     }
 
     Scaffold { innerPadding ->

@@ -1,21 +1,21 @@
 package cz.zlehcito.model.modelHandlers
 
 import com.google.gson.Gson
+import cz.zlehcito.model.appState.AppState
 import cz.zlehcito.model.dtos.Game
 import cz.zlehcito.model.dtos.GameResponse
-import cz.zlehcito.network.WebSocketManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
 
 class LobbyModelHandler(
-    private val webSocketManager: WebSocketManager
+    private val appState: AppState,
 ) {
     private val _gamesList = MutableStateFlow<List<Game>>(emptyList())
     val gamesList: StateFlow<List<Game>> get() = _gamesList // Expose immutable variant of the gamesList
 
     init {
-        webSocketManager.registerHandler("GET_GAMES") { json ->
+        appState.webSocketManager.registerHandler("GET_GAMES") { json ->
             _gamesList.value = parseGamesListJson(json.toString())
         }
 
@@ -31,12 +31,12 @@ class LobbyModelHandler(
                 put("subscriptionType", "Lobby")
             })
         }
-        webSocketManager.sendMessage(joinRequest)
+        appState.webSocketManager.sendMessage(joinRequest)
     }
 
     private fun sendGetGamesRequest() {
         val json = JSONObject().apply { put("type", "GET_GAMES") }
-        webSocketManager.sendMessage(json)
+        appState.webSocketManager.sendMessage(json)
     }
 
     private fun parseGamesListJson(response: String): List<Game> {

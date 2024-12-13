@@ -5,15 +5,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cz.zlehcito.network.WebSocketManager
+import cz.zlehcito.model.appState.AppState
 import org.json.JSONObject
 
 @Composable
 fun ResultsPage(
-    webSocketManager: WebSocketManager,
-    navigateToPage: (String, Int, Int) -> Unit,
-    idGame: Int,
-    idUser: Int,
+    appState: AppState,
+    navigateToPage: (String) -> Unit,
 ) {
     var resultsData by remember { mutableStateOf("Waiting for results...") }
 
@@ -22,7 +20,7 @@ fun ResultsPage(
         // Request results data
         val resultsRequest = JSONObject()
         resultsRequest.put("type", "GET_RESULTS")
-        webSocketManager.sendMessage(resultsRequest)
+        appState.webSocketManager.sendMessage(resultsRequest)
     }
 
     Scaffold { innerPadding ->
