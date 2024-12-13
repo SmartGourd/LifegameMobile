@@ -60,4 +60,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation (libs.gson)
     implementation (libs.androidx.lifecycle.runtime.compose)
+    implementation (libs.androidx.runtime.saveable)
+    implementation (libs.androidx.lifecycle.viewmodel.compose)
+    implementation (libs.androidx.lifecycle.viewmodel.ktx)
 }

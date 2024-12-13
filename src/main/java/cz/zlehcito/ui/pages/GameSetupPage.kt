@@ -3,10 +3,13 @@ package cz.zlehcito.ui.pages
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cz.zlehcito.model.modelHandlers.GameSetupModelHandler
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cz.zlehcito.model.viewModel.GameSetupViewModel
+import cz.zlehcito.model.viewModel.GameSetupViewModelFactory
 import cz.zlehcito.network.WebSocketManager
 
 @Composable
@@ -16,14 +19,21 @@ fun GameSetupPage(
     idGame: Int
 ) {
     // Initialize GameSetupModelHandler and persist across recompositions
+    /*
     val gameSetupModelHandler = remember {
         GameSetupModelHandler(webSocketManager, navigateToPage, idGame)
     }
+    */
+    val viewModel: GameSetupViewModel = viewModel(
+        factory = GameSetupViewModelFactory(webSocketManager, navigateToPage, idGame)
+    )
+    val gameSetupModelHandler = viewModel.gameSetupModelHandler
+    gameSetupModelHandler.sendSubscriptionPutGameSetupRequest()
 
     // Collect the game setup state from the model handler
     val gameSetupState by gameSetupModelHandler.gameSetupState.collectAsStateWithLifecycle()
     val gameKey by gameSetupModelHandler.gameKey.collectAsStateWithLifecycle()
-    var playerName by remember { mutableStateOf("") }
+    var playerName by rememberSaveable { mutableStateOf("") }
 
     Scaffold { innerPadding ->
         Column(

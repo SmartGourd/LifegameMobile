@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import cz.zlehcito.network.WebSocketManager
 import cz.zlehcito.ui.pages.*
 
@@ -18,11 +19,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        webSocketManager.connect()
+
         setContent {
             // Manage current page and optional parameters with state
-            var currentPage by remember { mutableStateOf("Lobby") }
-            var idGame by remember { mutableIntStateOf(0) }
-            var idUser by remember { mutableIntStateOf(0) }
+            var currentPage by rememberSaveable { mutableStateOf("Lobby") }
+            var idGame by rememberSaveable { mutableIntStateOf(0) }
+            var idUser by rememberSaveable { mutableIntStateOf(0) }
 
             // Navigation function with optional parameters
             val navigateToPage: (String, Int, Int) -> Unit = { page, gameId, userId ->
@@ -41,9 +44,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
     override fun onDestroy() {
         super.onDestroy()
-        webSocketManager.disconnect()
+        //webSocketManager.disconnect()
     }
 }
 

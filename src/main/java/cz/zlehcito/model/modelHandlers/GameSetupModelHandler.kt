@@ -1,5 +1,6 @@
 package cz.zlehcito.model.modelHandlers
 
+import androidx.lifecycle.ViewModel
 import com.google.gson.Gson
 import cz.zlehcito.model.dtos.GameKey
 import cz.zlehcito.model.dtos.GameSetupState
@@ -14,7 +15,7 @@ class GameSetupModelHandler(
     private val webSocketManager: WebSocketManager,
     private val navigateToPage: (String, Int, Int) -> Unit,
     private val idGame: Int
-) {
+)  {
     private val _gameSetupState = MutableStateFlow<GameSetupState?>(null)
     val gameSetupState: StateFlow<GameSetupState?> get() = _gameSetupState
     private val _defaultKeyValue = GameKey(idGame, "", "Invalid")
@@ -22,35 +23,28 @@ class GameSetupModelHandler(
     val gameKey: StateFlow<GameKey> get() = _gameKey
 
     init {
-        webSocketManager.connect(object : okhttp3.WebSocketListener() {
-            override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
-                val response = JSONObject(text)
+        webSocketManager.registerHandler("GET_GAME") { json ->
+            _gameSetupState.value = parseGameSetupStateJson(json.toString())
+        }
 
-                when (response.getString("type")) {
-                    "GET_GAME" -> {
-                        _gameSetupState.value = parseGameSetupStateJson(text)
-                    }
+        webSocketManager.registerHandler("JOIN_GAME") { json ->
+            _gameKey.value = parseJoinGameJson(json.toString())
+        }
 
-                    "JOIN_GAME" -> {
-                        _gameKey.value = parseJoinGameJson(text)
-                    }
+        webSocketManager.registerHandler("LEAVE_GAME") {
+            _gameKey.value = _defaultKeyValue
+        }
 
-                    "LEAVE_GAME" -> {
-                        _gameKey.value = _defaultKeyValue
-                    }
+        webSocketManager.registerHandler("START_GAME") {
+            navigateToPage("GamePage", idGame, 0)
+        }
 
-                    "START_GAME" -> {
-                        navigateToPage("GamePage", idGame, 0)
-                    }
-                }
-            }
-        })
 
         sendSubscriptionPutGameSetupRequest()
         sendGetGameRequest()
     }
 
-    private fun sendSubscriptionPutGameSetupRequest() {
+    public fun sendSubscriptionPutGameSetupRequest() {
         val joinRequest = JSONObject().apply {
             put("type", "SUBSCRIPTION_PUT")
             put("data", JSONObject().apply {
@@ -81,14 +75,14 @@ class GameSetupModelHandler(
     }
 
     public fun sendLeaveGameRequest(idUser: String) {
-        val joinRequest = JSONObject().apply {
+        val leaveRequest = JSONObject().apply {
             put("type", "LEAVE_GAME")
             put("data", JSONObject().apply {
                 put("IdGame", idGame)
                 put("IdUser", idUser)
             })
         }
-        webSocketManager.sendMessage(joinRequest)
+        webSocketManager.sendMessage(leaveRequest)
     }
 
     private fun parseGameSetupStateJson(response: String): GameSetupState? {

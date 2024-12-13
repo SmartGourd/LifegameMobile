@@ -18,11 +18,6 @@ fun ResultsPage(
     var resultsData by remember { mutableStateOf("Waiting for results...") }
 
     LaunchedEffect(Unit) {
-        webSocketManager.connect(object : okhttp3.WebSocketListener() {
-            override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
-                resultsData = text
-            }
-        })
 
         // Request results data
         val resultsRequest = JSONObject()

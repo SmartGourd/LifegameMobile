@@ -15,19 +15,9 @@ class LobbyModelHandler(
     val gamesList: StateFlow<List<Game>> get() = _gamesList // Expose immutable variant of the gamesList
 
     init {
-        // Connect to WebSocket and set up listener
-        webSocketManager.connect(object : okhttp3.WebSocketListener() {
-            override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
-                val response = JSONObject(text)
-
-                when (response.getString("type")) {
-                    "GET_GAMES" -> {
-                        _gamesList.value = parseGamesListJson(text)
-                    }
-                }
-
-            }
-        })
+        webSocketManager.registerHandler("GET_GAMES") { json ->
+            _gamesList.value = parseGamesListJson(json.toString())
+        }
 
         sendSubscriptionPutGameSetupRequest()
         sendGetGamesRequest()
