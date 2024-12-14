@@ -8,7 +8,6 @@ class AppStateViewModel(
     private val webSocketManager: WebSocketManager,
     private val idGame: Int,
     private val idUser: String,
-    private val mistakesDone: Array<String>
 ) : ViewModel() {
 
     // Hold the AppState instance
@@ -16,7 +15,6 @@ class AppStateViewModel(
         webSocketManager = webSocketManager,
         idGame = idGame,
         idUser = idUser,
-        mistakesDone = mistakesDone
     )
 
     override fun onCleared() {
@@ -29,7 +27,6 @@ class AppStateViewModelFactory(
     private val webSocketManager: WebSocketManager,
     private val idGame: Int,
     private val idUser: String,
-    private val mistakesDone: Array<String>
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AppStateViewModel::class.java)) {
@@ -38,7 +35,6 @@ class AppStateViewModelFactory(
                 webSocketManager = webSocketManager,
                 idGame = idGame,
                 idUser = idUser,
-                mistakesDone = mistakesDone
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

@@ -24,7 +24,6 @@ class MainActivity : ComponentActivity() {
                 webSocketManager = webSocketManager,
                 idGame = 0,
                 idUser = "",
-                mistakesDone = arrayOf()
             ).create(AppStateViewModel::class.java)
         }
 
@@ -41,7 +40,6 @@ class MainActivity : ComponentActivity() {
                 "Lobby" -> LobbyPage(appState, navigateToPage)
                 "GameSetup" -> GameSetupPage(appState, navigateToPage)
                 "Game" -> GamePage(appState, navigateToPage)
-                "Results" -> ResultsPage(appState, navigateToPage)
             }
         }
     }
