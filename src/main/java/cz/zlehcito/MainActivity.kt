@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
             when (currentPage) {
                 "Lobby" -> LobbyPage(appState, navigateToPage)
                 "GameSetup" -> GameSetupPage(appState, navigateToPage)
-                "Game" -> GamePage(appState, navigateToPage)
+                "GamePage" -> GamePage(appState, navigateToPage)
             }
         }
     }

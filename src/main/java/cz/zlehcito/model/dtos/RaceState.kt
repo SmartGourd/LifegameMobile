@@ -26,7 +26,7 @@ class PersonalGameData (
 
 class RacePlayerResult (
     val inGameName: String,
-    val points: Number,
+    val points: Int,
 )
 
 class RaceGameInterRoundState (
