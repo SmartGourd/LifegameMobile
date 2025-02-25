@@ -10,9 +10,5 @@ data class Game(
 )
 
 data class GameResponse(
-    val data: GameData
-)
-
-data class GameData(
     val games: List<Game>
 )

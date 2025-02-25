@@ -19,14 +19,14 @@ class LobbyModelHandler(
             _gamesList.value = parseGamesListJson(json.toString())
         }
 
-        sendSubscriptionPutGameSetupRequest()
+        sendSubscriptionPutLobbyRequest()
         sendGetGamesRequest()
     }
 
-    private fun sendSubscriptionPutGameSetupRequest() {
+    private fun sendSubscriptionPutLobbyRequest() {
         val joinRequest = JSONObject().apply {
-            put("type", "SUBSCRIPTION_PUT")
-            put("data", JSONObject().apply {
+            put("${'$'}type", "SUBSCRIPTION_PUT")
+            put("webSocketSubscriptionPut", JSONObject().apply {
                 put("idGame", 0)
                 put("subscriptionType", "Lobby")
             })
@@ -35,7 +35,7 @@ class LobbyModelHandler(
     }
 
     private fun sendGetGamesRequest() {
-        val json = JSONObject().apply { put("type", "GET_GAMES") }
+        val json = JSONObject().apply { put("${'$'}type", "GET_GAMES") }
         appState.webSocketManager.sendMessage(json)
     }
 
@@ -43,7 +43,7 @@ class LobbyModelHandler(
         return try {
             val gson = Gson()
             val gameResponse = gson.fromJson(response, GameResponse::class.java)
-            gameResponse.data.games
+            gameResponse.games
         } catch (e: Exception) {
             emptyList() // Return empty list on parsing error
         }

@@ -20,13 +20,14 @@ class GameSetupModelHandler(
     private val _gameKey = MutableStateFlow<GameKey>(_defaultKeyValue)
     val gameKey: StateFlow<GameKey> get() = _gameKey
 
-    init {
+    public fun initializeModel() {
         appState.webSocketManager.registerHandler("GET_GAME") { json ->
             _gameSetupState.value = parseGameSetupStateJson(json.toString())
         }
 
         appState.webSocketManager.registerHandler("JOIN_GAME") { json ->
             _gameKey.value = parseJoinGameJson(json.toString())
+            appState.idUser = _gameKey.value.idUser
         }
 
         appState.webSocketManager.registerHandler("LEAVE_GAME") {
@@ -34,7 +35,9 @@ class GameSetupModelHandler(
             _gameSetupState.value = null
         }
 
-        appState.webSocketManager.registerHandler("START_GAME") {
+        appState.webSocketManager.registerHandler("RACE_START_GAME") {
+            _gameKey.value = _defaultKeyValue
+            _gameSetupState.value = null
             navigateToPage("GamePage")
         }
 
@@ -45,8 +48,8 @@ class GameSetupModelHandler(
 
     public fun sendSubscriptionPutGameSetupRequest() {
         val sendSubscriptionPutRequest = JSONObject().apply {
-            put("type", "SUBSCRIPTION_PUT")
-            put("data", JSONObject().apply {
+            put("${'$'}type", "SUBSCRIPTION_PUT")
+            put("webSocketSubscriptionPut", JSONObject().apply {
                 put("idGame", appState.idGame)
                 put("subscriptionType", "GameSetup")
             })
@@ -56,16 +59,16 @@ class GameSetupModelHandler(
 
     public fun sendGetGameRequest() {
         val getGameRequest = JSONObject().apply {
-            put("type", "GET_GAME")
-            put("data", appState.idGame)
+            put("${'$'}type", "GET_GAME")
+            put("idGame", appState.idGame)
         }
         appState.webSocketManager.sendMessage(getGameRequest)
     }
 
     public fun sendJoinGameRequest(playerName: String) {
         val joinRequest = JSONObject().apply {
-            put("type", "JOIN_GAME")
-            put("data", JSONObject().apply {
+            put("${'$'}type", "JOIN_GAME")
+            put("gameJoinDto", JSONObject().apply {
                 put("idGame", appState.idGame)
                 put("PlayerName", playerName)
             })
@@ -75,8 +78,8 @@ class GameSetupModelHandler(
 
     public fun sendLeaveGameRequest(idUser: String) {
         val leaveRequest = JSONObject().apply {
-            put("type", "LEAVE_GAME")
-            put("data", JSONObject().apply {
+            put("${'$'}type", "LEAVE_GAME")
+            put("gameManipulationKey", JSONObject().apply {
                 put("IdGame", appState.idGame)
                 put("IdUser", idUser)
             })
@@ -88,7 +91,7 @@ class GameSetupModelHandler(
         return try {
             val gson = Gson()
             val gameResponse = gson.fromJson(response, GameSetupResponse::class.java)
-            gameResponse.data.game
+            gameResponse.game
         } catch (e: Exception) {
             gameSetupState.value
         }
@@ -98,7 +101,7 @@ class GameSetupModelHandler(
         return try {
             val gson = Gson()
             val joinGameResponse = gson.fromJson(response, JoinGameResponse::class.java)
-            joinGameResponse.data.gameKeyPlayer
+            joinGameResponse.gameKeyPlayer
         } catch (e: Exception) {
             _defaultKeyValue
         }

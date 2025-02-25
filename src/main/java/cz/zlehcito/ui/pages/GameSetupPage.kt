@@ -21,8 +21,9 @@ fun GameSetupPage(
         factory = GameSetupViewModelFactory(appState, navigateToPage)
     )
     val gameSetupModelHandler = viewModel.gameSetupModelHandler
-    gameSetupModelHandler.sendSubscriptionPutGameSetupRequest()
-    gameSetupModelHandler.sendGetGameRequest()
+    LaunchedEffect(Unit) {
+        gameSetupModelHandler.initializeModel()
+    }
 
     val gameSetupState by gameSetupModelHandler.gameSetupState.collectAsStateWithLifecycle()
     val gameKey by gameSetupModelHandler.gameKey.collectAsStateWithLifecycle()
@@ -41,12 +42,10 @@ fun GameSetupPage(
             // Display game setup information if available
             gameSetupState?.let { setup ->
                 Text("Name: ${setup.name}")
-                Text("Type: ${setup.gameType}")
                 Text("Status: ${setup.gameStatus}")
-                Text("Players: ${setup.playerCount} / ${setup.maxPlayers}")
-                Text("Current Round: ${setup.gameTypeSpecificSettings.currentRound}")
-                Text("Total Rounds: ${setup.gameTypeSpecificSettings.roundCount}")
-                Text("Input Type: ${setup.gameTypeSpecificSettings.inputType}")
+                Text("Players: ${setup.players.count()} / ${setup.maxPlayers}")
+                Text("Total Rounds: ${setup.roundCount}")
+                Text("Input Type: ${setup.inputType}")
 
                 Spacer(modifier = Modifier.height(16.dp))
 
