@@ -1,16 +1,16 @@
 package cz.zlehcito.model.modelHandlers
 
 import com.google.gson.Gson
-import cz.zlehcito.model.appState.AppState
-import cz.zlehcito.model.dtos.EndGameResponse
-import cz.zlehcito.model.dtos.GameSetupResponse
-import cz.zlehcito.model.dtos.GameSetupState
-import cz.zlehcito.model.dtos.NewTermResponse
-import cz.zlehcito.model.dtos.PersonalGameData
-import cz.zlehcito.model.dtos.RacePlayerResult
-import cz.zlehcito.model.dtos.StartRaceRoundResponse
-import cz.zlehcito.model.dtos.SubmitAnswerResponse
-import cz.zlehcito.model.dtos.TermDefinitionPair
+import cz.zlehcito.model.entities.EndGameResponse
+import cz.zlehcito.model.entities.GameSetupResponse
+import cz.zlehcito.model.entities.GameSetupState
+import cz.zlehcito.model.entities.NewTermResponse
+import cz.zlehcito.model.entities.PersonalGameData
+import cz.zlehcito.model.entities.RacePlayerResult
+import cz.zlehcito.model.entities.StartRaceRoundResponse
+import cz.zlehcito.model.entities.SubmitAnswerResponse
+import cz.zlehcito.model.entities.TermDefinitionPair
+import cz.zlehcito.network.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,9 +21,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-class GamePageModelHandler(
-    private val appState: AppState,
-) {
+object GamePageModel {
+    private var _idGame = 0
+    private var _idUser = ""
+
     private val countdownSeconds = 3
     private val countdownScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -33,8 +34,8 @@ class GamePageModelHandler(
     val gameSetupState: StateFlow<GameSetupState?> get() = _gameSetupState
     private val _personalGameData = MutableStateFlow<PersonalGameData?>(
         PersonalGameData(
-            appState.idGame,
-            appState.idUser,
+            _idGame,
+            _idUser,
             0,
             0,
             0
@@ -59,19 +60,22 @@ class GamePageModelHandler(
     private val _lastOneWasCorrect = MutableStateFlow<Boolean>(true)
     val lastOneWasCorrect: StateFlow<Boolean> = _lastOneWasCorrect
 
-    fun initializeModel() {
-        appState.webSocketManager.registerHandler("GET_GAME") { json ->
+    fun initializeModel(idGame: Int, idUser: String) {
+        _idGame = idGame
+        _idUser = idUser
+
+        WebSocketManager.registerHandler("GET_GAME") { json ->
             _gameSetupState.value = parseGameSetupStateJson(json.toString())
         }
 
-        appState.webSocketManager.registerHandler("RACE_ROUND_START") { json ->
+        WebSocketManager.registerHandler("RACE_ROUND_START") { json ->
             currentRound = parseStartRaceRoundJson(json.toString())
             setupTermDefinitionQueueForThisRound(currentRound.toInt())
             startCountdown()
             sendRaceNewTermRequest()
         }
 
-        appState.webSocketManager.registerHandler("RACE_SUBMIT_ANSWER") { json ->
+        WebSocketManager.registerHandler("RACE_SUBMIT_ANSWER") { json ->
             val submitAnswerResponse = parseSubmitAnswerJson(json.toString())
             _currentTerm.value = submitAnswerResponse?.termDefinitionPair?.term ?: ""
             _lastOneWasCorrect.value = submitAnswerResponse?.answerCorrect ?: false
@@ -82,11 +86,11 @@ class GamePageModelHandler(
             }
         }
 
-        appState.webSocketManager.registerHandler("RACE_NEW_TERM") { json ->
+        WebSocketManager.registerHandler("RACE_NEW_TERM") { json ->
             _currentTerm.value = parseNewTermJson(json.toString())
         }
 
-        appState.webSocketManager.registerHandler("RACE_END") { json ->
+        WebSocketManager.registerHandler("RACE_END") { json ->
             _playerFinalResults.value = parseEndGameResultsJson(json.toString())
             _showResults.value = true
         }
@@ -106,11 +110,11 @@ class GamePageModelHandler(
         val sendSubscriptionPutRequest = JSONObject().apply {
             put("${'$'}type", "SUBSCRIPTION_PUT")
             put("webSocketSubscriptionPut", JSONObject().apply {
-                put("idGame", appState.idGame)
+                put("idGame", _idGame)
                 put("subscriptionType", "GameRunning")
             })
         }
-        appState.webSocketManager.sendMessage(sendSubscriptionPutRequest)
+        WebSocketManager.sendMessage(sendSubscriptionPutRequest)
     }
 
     private fun startCountdown() {
@@ -199,8 +203,8 @@ class GamePageModelHandler(
         val personalGameDataRequest = JSONObject().apply {
             put("${'$'}type", "RACE_SUBMIT_ANSWER")
             put("gameManipulationKey", JSONObject().apply {
-                put("IdGame", appState.idGame)
-                put("IdUser", appState.idUser)
+                put("IdGame", _idGame)
+                put("IdUser", _idUser)
             })
             put("answer", JSONObject().apply {
                 put("term", term)
@@ -209,28 +213,28 @@ class GamePageModelHandler(
         }
 
         // Send the WebSocket message
-        appState.webSocketManager.sendMessage(personalGameDataRequest)
+        WebSocketManager.sendMessage(personalGameDataRequest)
     }
 
     public fun sendRaceNewTermRequest() {
         val personalGameDataRequest = JSONObject().apply {
             put("${'$'}type", "RACE_NEW_TERM")
             put("gameManipulationKey", JSONObject().apply {
-                put("IdGame", appState.idGame)
-                put("IdUser", appState.idUser)
+                put("IdGame", _idGame)
+                put("IdUser", _idUser)
             })
         }
 
         // Send the WebSocket message
-        appState.webSocketManager.sendMessage(personalGameDataRequest)
+        WebSocketManager.sendMessage(personalGameDataRequest)
     }
 
     private fun sendGetGameRequest() {
         val getGameRequest = JSONObject().apply {
             put("${'$'}type", "GET_GAME")
-            put("idGame", appState.idGame)
+            put("idGame", _idGame)
         }
-        appState.webSocketManager.sendMessage(getGameRequest)
+        WebSocketManager.sendMessage(getGameRequest)
     }
 
     private fun parseGameSetupStateJson(response: String): GameSetupState? {

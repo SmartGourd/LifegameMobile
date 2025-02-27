@@ -19,17 +19,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.zlehcito.R
-import cz.zlehcito.model.appState.AppState
-import cz.zlehcito.model.dtos.Game
-import cz.zlehcito.model.modelHandlers.LobbyModelHandler
+import cz.zlehcito.model.entities.Game
+import cz.zlehcito.model.modelHandlers.LobbyModel
 
 @Composable
 fun LobbyPage(
-    appState: AppState,
-    navigateToPage: (String) -> Unit,
+    navigateToGameSetupPage: (Int) -> Unit,
 ) {
-    val lobbyModelHandler = remember { LobbyModelHandler(appState) }
-    val gamesList by lobbyModelHandler.gamesList.collectAsStateWithLifecycle()
+    val lobbyModel = remember { LobbyModel(navigateToGameSetupPage) }
+    val gamesList by lobbyModel.gamesList.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
     val filteredGamesList = gamesList.filter { it.name.contains(searchQuery, ignoreCase = true) }
 
@@ -74,9 +72,7 @@ fun LobbyPage(
                                 .fillMaxWidth()
                                 .padding(bottom = 8.dp)
                                 .clickable {
-                                    appState.idGame = game.idGame
-                                    // Keep the literal string here as requested.
-                                    navigateToPage("GameSetup")
+                                    lobbyModel.navigateToGameSetup(game.idGame)
                                 },
                             backgroundColor = if (index % 2 == 0)
                                 colorResource(id = R.color.lighter_blue)

@@ -8,27 +8,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import cz.zlehcito.model.appState.AppState
-import cz.zlehcito.model.viewModel.GameSetupViewModel
-import cz.zlehcito.model.viewModel.GameSetupViewModelFactory
 import cz.zlehcito.R
+import cz.zlehcito.model.modelHandlers.GameSetupModel
 
 @Composable
 fun GameSetupPage(
-    appState: AppState,
-    navigateToPage: (String) -> Unit
+    navigateToLobbyPage: () -> Unit,
 ) {
-    val viewModel: GameSetupViewModel = viewModel(
-        factory = GameSetupViewModelFactory(appState, navigateToPage)
-    )
-    val gameSetupModelHandler = viewModel.gameSetupModelHandler
-    LaunchedEffect(Unit) {
-        gameSetupModelHandler.initializeModel()
-    }
-
-    val gameSetupState by gameSetupModelHandler.gameSetupState.collectAsStateWithLifecycle()
-    val gameKey by gameSetupModelHandler.gameKey.collectAsStateWithLifecycle()
+    val gameSetupState by GameSetupModel.gameSetupState.collectAsStateWithLifecycle()
+    val gameKey by GameSetupModel.gameKey.collectAsStateWithLifecycle()
     var playerName by rememberSaveable { mutableStateOf("") }
 
     Scaffold { innerPadding ->
@@ -76,14 +64,14 @@ fun GameSetupPage(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = { gameSetupModelHandler.sendJoinGameRequest(playerName) },
+                        onClick = { GameSetupModel.sendJoinGameRequest(playerName) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.gamesetup_join_game))
                     }
                 } else {
                     Button(
-                        onClick = { gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser) },
+                        onClick = { GameSetupModel.sendLeaveGameRequest(gameKey.idUser) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.gamesetup_leave_game))
@@ -94,8 +82,8 @@ fun GameSetupPage(
 
             Button(
                 onClick = {
-                    gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser)
-                    navigateToPage("Lobby")
+                    GameSetupModel.sendLeaveGameRequest(gameKey.idUser)
+                    navigateToLobbyPage()
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

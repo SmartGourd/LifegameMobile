@@ -13,8 +13,11 @@ import android.os.Looper
 //import java.security.cert.X509Certificate
 //import javax.net.ssl.*
 
-class WebSocketManager(private val url: String) {
+object WebSocketManager {
+    private const val URL = "wss://zlehcito.cz/ws"
     private val client = OkHttpClient()
+
+    //private val url = "wss://10.0.2.2:7249/ws"
     //private val client = getUnsafeOkHttpClient()
 
     private var webSocket: WebSocket? = null
@@ -48,7 +51,7 @@ class WebSocketManager(private val url: String) {
 
     fun connect() {
         if (webSocket == null) {
-            val request = Request.Builder().url(url).build()
+            val request = Request.Builder().url(URL).build()
             webSocket = client.newWebSocket(request, object : WebSocketListener() {
                 override fun onMessage(webSocket: WebSocket, text: String) {
                     handleIncomingMessage(text)

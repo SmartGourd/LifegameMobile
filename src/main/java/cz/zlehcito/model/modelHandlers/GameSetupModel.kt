@@ -1,44 +1,47 @@
 package cz.zlehcito.model.modelHandlers
 
 import com.google.gson.Gson
-import cz.zlehcito.model.appState.AppState
-import cz.zlehcito.model.dtos.GameKey
-import cz.zlehcito.model.dtos.GameSetupState
-import cz.zlehcito.model.dtos.GameSetupResponse
-import cz.zlehcito.model.dtos.JoinGameResponse
+import cz.zlehcito.model.entities.GameKey
+import cz.zlehcito.model.entities.GameSetupState
+import cz.zlehcito.model.entities.GameSetupResponse
+import cz.zlehcito.model.entities.JoinGameResponse
+import cz.zlehcito.network.WebSocketManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
 
-class GameSetupModelHandler(
-    private val appState: AppState,
-    private val navigateToPage: (String) -> Unit,
-)  {
+object GameSetupModel {
+    private var _idGame: Int = 0
+
     private val _gameSetupState = MutableStateFlow<GameSetupState?>(null)
     val gameSetupState: StateFlow<GameSetupState?> get() = _gameSetupState
-    private val _defaultKeyValue = GameKey(appState.idGame, "", "Invalid")
+    private val _defaultKeyValue = GameKey(_idGame, "", "Invalid")
     private val _gameKey = MutableStateFlow<GameKey>(_defaultKeyValue)
     val gameKey: StateFlow<GameKey> get() = _gameKey
+    private val _idUser = MutableStateFlow<String>("")
 
-    public fun initializeModel() {
-        appState.webSocketManager.registerHandler("GET_GAME") { json ->
+
+    public fun initializeModel(idGame: Int, navigateToGamePage: (Int, String) -> Unit) {
+        _idGame = idGame
+
+        WebSocketManager.registerHandler("GET_GAME") { json ->
             _gameSetupState.value = parseGameSetupStateJson(json.toString())
         }
 
-        appState.webSocketManager.registerHandler("JOIN_GAME") { json ->
+        WebSocketManager.registerHandler("JOIN_GAME") { json ->
             _gameKey.value = parseJoinGameJson(json.toString())
-            appState.idUser = _gameKey.value.idUser
+            _idUser.value = _gameKey.value.idUser
         }
 
-        appState.webSocketManager.registerHandler("LEAVE_GAME") {
+        WebSocketManager.registerHandler("LEAVE_GAME") {
             _gameKey.value = _defaultKeyValue
             _gameSetupState.value = null
         }
 
-        appState.webSocketManager.registerHandler("RACE_START_GAME") {
+        WebSocketManager.registerHandler("RACE_START_GAME") {
             _gameKey.value = _defaultKeyValue
             _gameSetupState.value = null
-            navigateToPage("GamePage")
+            navigateToGamePage(idGame, _idUser.value)
         }
 
 
@@ -50,41 +53,41 @@ class GameSetupModelHandler(
         val sendSubscriptionPutRequest = JSONObject().apply {
             put("${'$'}type", "SUBSCRIPTION_PUT")
             put("webSocketSubscriptionPut", JSONObject().apply {
-                put("idGame", appState.idGame)
+                put("idGame", _idGame)
                 put("subscriptionType", "GameSetup")
             })
         }
-        appState.webSocketManager.sendMessage(sendSubscriptionPutRequest)
+        WebSocketManager.sendMessage(sendSubscriptionPutRequest)
     }
 
     public fun sendGetGameRequest() {
         val getGameRequest = JSONObject().apply {
             put("${'$'}type", "GET_GAME")
-            put("idGame", appState.idGame)
+            put("idGame", _idGame)
         }
-        appState.webSocketManager.sendMessage(getGameRequest)
+        WebSocketManager.sendMessage(getGameRequest)
     }
 
     public fun sendJoinGameRequest(playerName: String) {
         val joinRequest = JSONObject().apply {
             put("${'$'}type", "JOIN_GAME")
             put("gameJoinDto", JSONObject().apply {
-                put("idGame", appState.idGame)
+                put("idGame", _idGame)
                 put("PlayerName", playerName)
             })
         }
-        appState.webSocketManager.sendMessage(joinRequest)
+        WebSocketManager.sendMessage(joinRequest)
     }
 
     public fun sendLeaveGameRequest(idUser: String) {
         val leaveRequest = JSONObject().apply {
             put("${'$'}type", "LEAVE_GAME")
             put("gameManipulationKey", JSONObject().apply {
-                put("IdGame", appState.idGame)
+                put("IdGame", _idGame)
                 put("IdUser", idUser)
             })
         }
-        appState.webSocketManager.sendMessage(leaveRequest)
+        WebSocketManager.sendMessage(leaveRequest)
     }
 
     private fun parseGameSetupStateJson(response: String): GameSetupState? {

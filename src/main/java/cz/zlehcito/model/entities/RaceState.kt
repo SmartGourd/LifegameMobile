@@ -1,4 +1,4 @@
-package cz.zlehcito.model.dtos
+package cz.zlehcito.model.entities
 
 data class RaceRoundPlayerState (
     val playerName: String,

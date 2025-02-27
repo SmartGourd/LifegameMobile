@@ -4,43 +4,44 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import cz.zlehcito.model.viewModel.AppStateViewModel
-import cz.zlehcito.model.viewModel.AppStateViewModelFactory
+import cz.zlehcito.model.entities.AvailablePages
+import cz.zlehcito.model.modelHandlers.GamePageModel
+import cz.zlehcito.model.modelHandlers.GameSetupModel
 import cz.zlehcito.network.WebSocketManager
 import cz.zlehcito.ui.pages.*
 
 class MainActivity : ComponentActivity() {
-    //private val webSocketManager = WebSocketManager("wss://10.0.2.2:7249/ws")
-    private val webSocketManager = WebSocketManager("wss://zlehcito.cz/ws")
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        webSocketManager.connect()
-
-        val appStateViewModel: AppStateViewModel by lazy {
-            AppStateViewModelFactory(
-                webSocketManager = webSocketManager,
-                idGame = 0,
-                idUser = "",
-            ).create(AppStateViewModel::class.java)
-        }
+        WebSocketManager.connect()
 
         setContent {
-            val appState = appStateViewModel.appState
-            var currentPage by rememberSaveable { mutableStateOf("Lobby") }
+            var currentPage by rememberSaveable { mutableStateOf(AvailablePages.Lobby) }
 
-            val navigateToPage: (String) -> Unit = { page ->
-                currentPage = page
+            val navigateToLobbyPage: () -> Unit = {
+                currentPage = AvailablePages.Lobby
             }
+
+            val navigateToGamePage: (Int, String) -> Unit = { idGame, idUser ->
+                GamePageModel.initializeModel(idGame, idUser)
+                currentPage = AvailablePages.Game
+            }
+
+            val navigateToGameSetupPage: (Int) -> Unit = { idGame ->
+                GameSetupModel.initializeModel(idGame, navigateToGamePage = navigateToGamePage)
+                currentPage = AvailablePages.GameSetup
+            }
+
 
             // Render pages based on the current page
             when (currentPage) {
-                "Lobby" -> LobbyPage(appState, navigateToPage)
-                "GameSetup" -> GameSetupPage(appState, navigateToPage)
-                "GamePage" -> GamePage(appState, navigateToPage)
+                AvailablePages.Lobby -> LobbyPage(navigateToGameSetupPage = navigateToGameSetupPage)
+                AvailablePages.GameSetup -> GameSetupPage(navigateToLobbyPage = navigateToLobbyPage)
+                AvailablePages.Game -> GamePage(navigateToLobbyPage = navigateToLobbyPage)
             }
         }
     }
