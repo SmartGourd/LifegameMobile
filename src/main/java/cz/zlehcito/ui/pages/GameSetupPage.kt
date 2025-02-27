@@ -5,12 +5,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cz.zlehcito.model.appState.AppState
 import cz.zlehcito.model.viewModel.GameSetupViewModel
 import cz.zlehcito.model.viewModel.GameSetupViewModelFactory
+import cz.zlehcito.R
 
 @Composable
 fun GameSetupPage(
@@ -36,70 +38,68 @@ fun GameSetupPage(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Text("Game Setup", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = stringResource(R.string.gamesetup_title),
+                style = MaterialTheme.typography.headlineMedium
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Display game setup information if available
             gameSetupState?.let { setup ->
-                Text("Name: ${setup.name}")
-                Text("Status: ${setup.gameStatus}")
-                Text("Players: ${setup.players.count()} / ${setup.maxPlayers}")
-                Text("Total Rounds: ${setup.roundCount}")
-                Text("Input Type: ${setup.inputType}")
+                Text(stringResource(R.string.gamesetup_name, setup.name))
+                Text(stringResource(R.string.gamesetup_status, setup.gameStatus))
+                Text(stringResource(R.string.gamesetup_players, setup.players.count(), setup.maxPlayers))
+                Text(stringResource(R.string.gamesetup_total_rounds, setup.roundCount))
+                Text(stringResource(R.string.gamesetup_input_type, setup.inputType))
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Players in Lobby:")
+                Text(stringResource(R.string.gamesetup_players_in_lobby))
                 setup.players.forEach { player ->
                     Text("- ${player.inGameName}")
                 }
             } ?: run {
-                Text("Loading game data...")
+                Text(stringResource(R.string.gamesetup_loading))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-
-
             gameKey.let { gameKey ->
                 if (gameKey.idUser.isEmpty() || gameKey.keyType == "Invalid") {
-                    // Input field for player name
+                    // Input field for player name using a string resource label
                     OutlinedTextField(
                         value = playerName,
                         onValueChange = { playerName = it },
-                        label = { Text("Enter your name") },
+                        label = { Text(stringResource(R.string.gamesetup_enter_name)) },
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = {
-                            gameSetupModelHandler.sendJoinGameRequest(playerName)
-                        },
+                        onClick = { gameSetupModelHandler.sendJoinGameRequest(playerName) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Join Game")
+                        Text(stringResource(R.string.gamesetup_join_game))
                     }
                 } else {
                     Button(
-                        onClick = {
-                            gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser)
-                        },
+                        onClick = { gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Leave Game")
+                        Text(stringResource(R.string.gamesetup_leave_game))
                     }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Back to Lobby button
-            Button(onClick = {
-                gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser)
-                navigateToPage("Lobby")
-            }, modifier = Modifier.fillMaxWidth()) {
-                Text("Back to Lobby")
+            Button(
+                onClick = {
+                    gameSetupModelHandler.sendLeaveGameRequest(gameKey.idUser)
+                    navigateToPage("Lobby")
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.gamesetup_back_to_lobby))
             }
         }
     }

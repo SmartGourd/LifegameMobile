@@ -6,21 +6,21 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
 import android.util.Log
-import okhttp3.Response
 import android.os.Handler
 import android.os.Looper
 
-import java.security.cert.X509Certificate
-import javax.net.ssl.*
+//import okhttp3.Response
+//import java.security.cert.X509Certificate
+//import javax.net.ssl.*
 
 class WebSocketManager(private val url: String) {
-    //private val client = OkHttpClient()
-    private val client = getUnsafeOkHttpClient()
+    private val client = OkHttpClient()
+    //private val client = getUnsafeOkHttpClient()
 
     private var webSocket: WebSocket? = null
 
     private val messageHandlers: MutableMap<String, (JSONObject) -> Unit> = mutableMapOf()
-
+    /* Used for development with connection to localhost websocket server
     fun getUnsafeOkHttpClient(): OkHttpClient {
         try {
             // Create a trust manager that does not validate certificate chains
@@ -44,6 +44,7 @@ class WebSocketManager(private val url: String) {
             throw RuntimeException(e)
         }
     }
+    */
 
     fun connect() {
         if (webSocket == null) {

@@ -1,3 +1,46 @@
 <resources>
+    <!-- Global Strings -->
     <string name="app_name">ZlehcitoApp</string>
+
+    <!-- LobbyPage Strings -->
+    <string name="lobby_title">Lobby</string>
+    <string name="lobby_loading_games">Loading games ...</string>
+
+    <!-- SearchBar Strings -->
+    <string name="searchbar_placeholder">Search games ...</string>
+
+    <!-- GameItem Strings -->
+    <string name="gameitem_players">Players: %1$d/%2$d</string>
+    <string name="gameitem_type">Type: %1$s</string>
+
+    <!-- GameSetupPage Strings (if needed elsewhere) -->
+    <string name="gamesetup_title">Game Setup</string>
+    <string name="gamesetup_name">Name: %1$s</string>
+    <string name="gamesetup_status">Status: %1$s</string>
+    <string name="gamesetup_players">Players: %1$d / %2$d</string>
+    <string name="gamesetup_total_rounds">Total Rounds: %1$d</string>
+    <string name="gamesetup_input_type">Input Type: %1$s</string>
+    <string name="gamesetup_players_in_lobby">Players in Lobby:</string>
+    <string name="gamesetup_loading">Loading game data...</string>
+    <string name="gamesetup_enter_name">Enter your name</string>
+    <string name="gamesetup_join_game">Join Game</string>
+    <string name="gamesetup_leave_game">Leave Game</string>
+    <string name="gamesetup_back_to_lobby">Back to Lobby</string>
+
+    <!-- GamePage Strings -->
+    <!-- Results Section -->
+    <string name="gamepage_result_title">Results</string>
+    <string name="gamepage_result_loading">Loading results</string>
+    <string name="gamepage_result_back_to_lobby">Back to Lobby</string>
+    <string name="gamepage_result_points">points</string>
+    <string name="gamepage_result_mistakes_title">Mistakes</string>
+    <string name="gamepage_result_mistake">mistake</string>
+    <string name="gamepage_result_mistakes">mistakes</string>
+
+    <!-- Writing Section -->
+    <string name="gamepage_writing_enter_definition">Enter definition</string>
+    <string name="gamepage_writing_submit">Submit</string>
+
+    <!-- Connecting Section -->
+    <string name="gamepage_connecting_game_title">Connect the pairs!</string>
 </resources>

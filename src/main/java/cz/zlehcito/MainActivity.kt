@@ -13,8 +13,8 @@ import cz.zlehcito.network.WebSocketManager
 import cz.zlehcito.ui.pages.*
 
 class MainActivity : ComponentActivity() {
-    private val webSocketManager = WebSocketManager("wss://10.0.2.2:7249/ws")
-    //private val webSocketManager = WebSocketManager("wss://zlehcito.cz/ws")
+    //private val webSocketManager = WebSocketManager("wss://10.0.2.2:7249/ws")
+    private val webSocketManager = WebSocketManager("wss://zlehcito.cz/ws")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

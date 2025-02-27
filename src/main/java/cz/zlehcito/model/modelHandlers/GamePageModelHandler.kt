@@ -11,17 +11,17 @@ import cz.zlehcito.model.dtos.RacePlayerResult
 import cz.zlehcito.model.dtos.StartRaceRoundResponse
 import cz.zlehcito.model.dtos.SubmitAnswerResponse
 import cz.zlehcito.model.dtos.TermDefinitionPair
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-class GamePageModelHandler (
+class GamePageModelHandler(
     private val appState: AppState,
 ) {
     private val countdownSeconds = 3
@@ -31,7 +31,15 @@ class GamePageModelHandler (
 
     private val _gameSetupState = MutableStateFlow<GameSetupState?>(null)
     val gameSetupState: StateFlow<GameSetupState?> get() = _gameSetupState
-    private val _personalGameData = MutableStateFlow<PersonalGameData?>(PersonalGameData(appState.idGame, appState.idUser, 0, 0, 0))
+    private val _personalGameData = MutableStateFlow<PersonalGameData?>(
+        PersonalGameData(
+            appState.idGame,
+            appState.idUser,
+            0,
+            0,
+            0
+        )
+    )
     val personalGameData: StateFlow<PersonalGameData?> get() = _personalGameData
     private val _playerFinalResults = MutableStateFlow<List<RacePlayerResult>>(emptyList())
     val playerFinalResults: StateFlow<List<RacePlayerResult>> get() = _playerFinalResults
@@ -39,7 +47,8 @@ class GamePageModelHandler (
     val showResults: StateFlow<Boolean> get() = _showResults
     private val _secondsOfCountdown = MutableStateFlow<Int>(0)
     val secondsOfCountdown: StateFlow<Int> get() = _secondsOfCountdown
-    private val _termDefinitionPairsQueueThisRound = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
+    private val _termDefinitionPairsQueueThisRound =
+        MutableStateFlow<List<TermDefinitionPair>>(emptyList())
     val termDefinitionPairsQueueThisRound: StateFlow<List<TermDefinitionPair>> get() = _termDefinitionPairsQueueThisRound
     private val _mistakeDictionary = MutableStateFlow<Map<String, Int>>(emptyMap())
     val mistakeDictionary: StateFlow<Map<String, Int>> = _mistakeDictionary
@@ -67,7 +76,8 @@ class GamePageModelHandler (
             _currentTerm.value = submitAnswerResponse?.termDefinitionPair?.term ?: ""
             _lastOneWasCorrect.value = submitAnswerResponse?.answerCorrect ?: false
             if (!_lastOneWasCorrect.value) {
-                _currentDefinition.value = submitAnswerResponse?.termDefinitionPair?.definition ?: ""
+                _currentDefinition.value =
+                    submitAnswerResponse?.termDefinitionPair?.definition ?: ""
                 addMistake(_currentTerm.value, _currentDefinition.value)
             }
         }
@@ -83,6 +93,9 @@ class GamePageModelHandler (
 
         _showResults.value = false
         _mistakeDictionary.value = emptyMap()
+        _currentTerm.value = ""
+        _currentDefinition.value = ""
+        _lastOneWasCorrect.value = true
         sendSubscriptionPutGameRunningRequest()
         sendGetGameRequest()
         startCountdown()
@@ -122,7 +135,10 @@ class GamePageModelHandler (
 
         // Calculate the start and end indices for the current round
         val startIdx = (currentRound - 1) * roundSize + minOf(currentRound - 1, extraItems)
-        val endIdx = minOf(currentRound * roundSize + minOf(currentRound, extraItems), termsAndDefinitions.size)
+        val endIdx = minOf(
+            currentRound * roundSize + minOf(currentRound, extraItems),
+            termsAndDefinitions.size
+        )
 
         // Extract the term-definition pairs for this round
         val newList = termsAndDefinitions.subList(startIdx, endIdx).toMutableList()
@@ -150,7 +166,7 @@ class GamePageModelHandler (
         _currentDefinition.value = "";
     }
 
-    fun setCurrentDefiniton(definition: String) {
+    fun setCurrentDefinition(definition: String) {
         _currentDefinition.value = definition
     }
 
@@ -237,7 +253,7 @@ class GamePageModelHandler (
         }
     }
 
-    private fun parseEndGameResultsJson(response: String): List<RacePlayerResult>{
+    private fun parseEndGameResultsJson(response: String): List<RacePlayerResult> {
         return try {
             val gson = Gson()
             val endGameResponse = gson.fromJson(response, EndGameResponse::class.java)
@@ -252,7 +268,7 @@ class GamePageModelHandler (
             val gson = Gson()
             val submitAnswerResponse = gson.fromJson(response, SubmitAnswerResponse::class.java)
             submitAnswerResponse
-        } catch (e:Exception) {
+        } catch (e: Exception) {
             null
         }
     }

@@ -8,15 +8,17 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cz.zlehcito.R
 import cz.zlehcito.model.appState.AppState
 import cz.zlehcito.model.dtos.Game
 import cz.zlehcito.model.modelHandlers.LobbyModelHandler
@@ -34,7 +36,7 @@ fun LobbyPage(
     Scaffold { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
             Text(
-                text = "Lobby",
+                text = stringResource(R.string.lobby_title),
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
@@ -50,13 +52,13 @@ fun LobbyPage(
 
             if (gamesList.isEmpty()) {
                 Text(
-                    text = "Loading games ...",
+                    text = stringResource(R.string.lobby_loading_games),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
             } else if (filteredGamesList.isEmpty()) {
                 Text(
-                    text = "Loading games ...",
+                    text = stringResource(R.string.lobby_loading_games),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -71,9 +73,15 @@ fun LobbyPage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 8.dp)
-                                .clickable { appState.idGame = game.idGame; navigateToPage("GameSetup") },
-                            backgroundColor = if (index % 2 == 0) Color(0xFFBBDEFB) else Color(0xFFE1F5FE)
-
+                                .clickable {
+                                    appState.idGame = game.idGame
+                                    // Keep the literal string here as requested.
+                                    navigateToPage("GameSetup")
+                                },
+                            backgroundColor = if (index % 2 == 0)
+                                colorResource(id = R.color.lighter_blue)
+                            else
+                                colorResource(id = R.color.darker_blue)
                         )
                     }
                 }
@@ -93,16 +101,14 @@ fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
         TextField(
             value = searchQuery,
             onValueChange = onQueryChange,
-            placeholder = { Text(text = "Search games ...") },
+            placeholder = { Text(text = stringResource(R.string.searchbar_placeholder)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White, RoundedCornerShape(6.dp)),
             singleLine = true,
             colors = TextFieldDefaults.textFieldColors(
-                focusedTextColor = Color.Black,
-                cursorColor = Color(0xFFE1F5FE),
-                focusedIndicatorColor = Color(0xFF2D7EC6), // Bottom border when focused
-                unfocusedIndicatorColor = Color(0xFF75BDFF), // Bottom border when not focused
+                focusedIndicatorColor = colorResource(id = R.color.lighter_blue),
+                unfocusedIndicatorColor = colorResource(id = R.color.lighter_blue)
             )
         )
     }
@@ -127,14 +133,14 @@ fun GameItem(game: Game, modifier: Modifier = Modifier, backgroundColor: Color) 
                 .padding(end = 8.dp)
         )
         Text(
-            text = "Players: ${game.playerCount}/${game.maxPlayers}",
-            color = Color(0xFF37474F),
+            text = stringResource(R.string.gameitem_players, game.playerCount, game.maxPlayers),
+            color = colorResource(id = R.color.text_grey),
             fontSize = 16.sp,
             modifier = Modifier.padding(end = 16.dp)
         )
         Text(
-            text = "Type: ${game.gameType}",
-            color = Color(0xFF37474F),
+            text = stringResource(R.string.gameitem_type, game.gameType),
+            color = colorResource(id = R.color.text_grey),
             fontSize = 16.sp
         )
     }
