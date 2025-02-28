@@ -5,7 +5,6 @@ import cz.zlehcito.model.entities.EndGameResponse
 import cz.zlehcito.model.entities.GameSetupResponse
 import cz.zlehcito.model.entities.GameSetupState
 import cz.zlehcito.model.entities.NewTermResponse
-import cz.zlehcito.model.entities.PersonalGameData
 import cz.zlehcito.model.entities.RacePlayerResult
 import cz.zlehcito.model.entities.StartRaceRoundResponse
 import cz.zlehcito.model.entities.SubmitAnswerResponse
@@ -14,7 +13,6 @@ import cz.zlehcito.network.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,39 +23,29 @@ object GamePageModel {
     private var _idGame = 0
     private var _idUser = ""
 
-    private val countdownSeconds = 3
+    private const val COUNTDOWN_SECONDS = 3
     private val countdownScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var currentRound = 1 as Number
 
     private val _gameSetupState = MutableStateFlow<GameSetupState?>(null)
     val gameSetupState: StateFlow<GameSetupState?> get() = _gameSetupState
-    private val _personalGameData = MutableStateFlow<PersonalGameData?>(
-        PersonalGameData(
-            _idGame,
-            _idUser,
-            0,
-            0,
-            0
-        )
-    )
-    val personalGameData: StateFlow<PersonalGameData?> get() = _personalGameData
     private val _playerFinalResults = MutableStateFlow<List<RacePlayerResult>>(emptyList())
     val playerFinalResults: StateFlow<List<RacePlayerResult>> get() = _playerFinalResults
-    private val _showResults = MutableStateFlow<Boolean>(false)
+    private val _showResults = MutableStateFlow(false)
     val showResults: StateFlow<Boolean> get() = _showResults
-    private val _secondsOfCountdown = MutableStateFlow<Int>(0)
+    private val _secondsOfCountdown = MutableStateFlow(0)
     val secondsOfCountdown: StateFlow<Int> get() = _secondsOfCountdown
     private val _termDefinitionPairsQueueThisRound =
         MutableStateFlow<List<TermDefinitionPair>>(emptyList())
     val termDefinitionPairsQueueThisRound: StateFlow<List<TermDefinitionPair>> get() = _termDefinitionPairsQueueThisRound
     private val _mistakeDictionary = MutableStateFlow<Map<String, Int>>(emptyMap())
     val mistakeDictionary: StateFlow<Map<String, Int>> = _mistakeDictionary
-    private val _currentTerm = MutableStateFlow<String>("")
+    private val _currentTerm = MutableStateFlow("")
     val currentTerm: StateFlow<String> = _currentTerm
-    private val _currentDefinition = MutableStateFlow<String>("")
+    private val _currentDefinition = MutableStateFlow("")
     val currentDefinition: StateFlow<String> = _currentDefinition
-    private val _lastOneWasCorrect = MutableStateFlow<Boolean>(true)
+    private val _lastOneWasCorrect = MutableStateFlow(true)
     val lastOneWasCorrect: StateFlow<Boolean> = _lastOneWasCorrect
 
     fun initializeModel(idGame: Int, idUser: String) {
@@ -118,11 +106,11 @@ object GamePageModel {
     }
 
     private fun startCountdown() {
-        _secondsOfCountdown.value = countdownSeconds
+        _secondsOfCountdown.value = COUNTDOWN_SECONDS
         countdownScope.launch {
-            repeat(countdownSeconds) { i ->
+            repeat(COUNTDOWN_SECONDS) { i ->
                 delay(1000) // Wait 1 second
-                _secondsOfCountdown.value = countdownSeconds - i - 1
+                _secondsOfCountdown.value = COUNTDOWN_SECONDS - i - 1
             }
         }
     }
@@ -154,10 +142,6 @@ object GamePageModel {
         _termDefinitionPairsQueueThisRound.value = newList
     }
 
-    fun cleanup() {
-        countdownScope.cancel()
-    }
-
     private fun addMistake(term: String, definition: String) {
         val key = "$term $ $definition |"
         _mistakeDictionary.value = _mistakeDictionary.value.toMutableMap().apply {
@@ -167,14 +151,14 @@ object GamePageModel {
 
     fun checkDefinitionCorrectness() {
         sendRaceSubmitAnswer(currentTerm.value, currentDefinition.value)
-        _currentDefinition.value = "";
+        _currentDefinition.value = ""
     }
 
     fun setCurrentDefinition(definition: String) {
         _currentDefinition.value = definition
     }
 
-    public fun pairConnected(term: String, definition: String): Boolean {
+    fun pairConnected(term: String, definition: String): Boolean {
         val currentQueue = _termDefinitionPairsQueueThisRound.value.toMutableList()
         val pairToCheck = TermDefinitionPair(term, definition)
 
@@ -199,7 +183,7 @@ object GamePageModel {
         return isMatch
     }
 
-    public fun sendRaceSubmitAnswer(term: String, definition: String) {
+    private fun sendRaceSubmitAnswer(term: String, definition: String) {
         val personalGameDataRequest = JSONObject().apply {
             put("${'$'}type", "RACE_SUBMIT_ANSWER")
             put("gameManipulationKey", JSONObject().apply {
@@ -216,7 +200,7 @@ object GamePageModel {
         WebSocketManager.sendMessage(personalGameDataRequest)
     }
 
-    public fun sendRaceNewTermRequest() {
+    private fun sendRaceNewTermRequest() {
         val personalGameDataRequest = JSONObject().apply {
             put("${'$'}type", "RACE_NEW_TERM")
             put("gameManipulationKey", JSONObject().apply {

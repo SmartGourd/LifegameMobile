@@ -86,7 +86,6 @@ fun LobbyPage(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
     Box(
@@ -102,7 +101,7 @@ fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
                 .fillMaxWidth()
                 .background(Color.White, RoundedCornerShape(6.dp)),
             singleLine = true,
-            colors = TextFieldDefaults.textFieldColors(
+            colors = TextFieldDefaults.colors(
                 focusedIndicatorColor = colorResource(id = R.color.lighter_blue),
                 unfocusedIndicatorColor = colorResource(id = R.color.lighter_blue)
             )

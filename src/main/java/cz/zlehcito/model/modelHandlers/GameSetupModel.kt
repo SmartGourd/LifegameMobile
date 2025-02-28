@@ -16,12 +16,12 @@ object GameSetupModel {
     private val _gameSetupState = MutableStateFlow<GameSetupState?>(null)
     val gameSetupState: StateFlow<GameSetupState?> get() = _gameSetupState
     private val _defaultKeyValue = GameKey(_idGame, "", "Invalid")
-    private val _gameKey = MutableStateFlow<GameKey>(_defaultKeyValue)
+    private val _gameKey = MutableStateFlow(_defaultKeyValue)
     val gameKey: StateFlow<GameKey> get() = _gameKey
-    private val _idUser = MutableStateFlow<String>("")
+    private val _idUser = MutableStateFlow("")
 
 
-    public fun initializeModel(idGame: Int, navigateToGamePage: (Int, String) -> Unit) {
+    fun initializeModel(idGame: Int, navigateToGamePage: (Int, String) -> Unit) {
         _idGame = idGame
 
         WebSocketManager.registerHandler("GET_GAME") { json ->
@@ -49,7 +49,7 @@ object GameSetupModel {
         sendGetGameRequest()
     }
 
-    public fun sendSubscriptionPutGameSetupRequest() {
+    private fun sendSubscriptionPutGameSetupRequest() {
         val sendSubscriptionPutRequest = JSONObject().apply {
             put("${'$'}type", "SUBSCRIPTION_PUT")
             put("webSocketSubscriptionPut", JSONObject().apply {
@@ -60,7 +60,7 @@ object GameSetupModel {
         WebSocketManager.sendMessage(sendSubscriptionPutRequest)
     }
 
-    public fun sendGetGameRequest() {
+    private fun sendGetGameRequest() {
         val getGameRequest = JSONObject().apply {
             put("${'$'}type", "GET_GAME")
             put("idGame", _idGame)
@@ -68,7 +68,7 @@ object GameSetupModel {
         WebSocketManager.sendMessage(getGameRequest)
     }
 
-    public fun sendJoinGameRequest(playerName: String) {
+    fun sendJoinGameRequest(playerName: String) {
         val joinRequest = JSONObject().apply {
             put("${'$'}type", "JOIN_GAME")
             put("gameJoinDto", JSONObject().apply {
@@ -79,7 +79,7 @@ object GameSetupModel {
         WebSocketManager.sendMessage(joinRequest)
     }
 
-    public fun sendLeaveGameRequest(idUser: String) {
+    fun sendLeaveGameRequest(idUser: String) {
         val leaveRequest = JSONObject().apply {
             put("${'$'}type", "LEAVE_GAME")
             put("gameManipulationKey", JSONObject().apply {

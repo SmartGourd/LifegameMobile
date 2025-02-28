@@ -65,11 +65,6 @@ object WebSocketManager {
         messageHandlers[type] = handler
     }
 
-    // Remove a handler for a specific message type
-    fun unregisterHandler(type: String) {
-        messageHandlers.remove(type)
-    }
-
     // Process incoming messages
     private fun handleIncomingMessage(message: String) {
         val json = JSONObject(message)
@@ -113,8 +108,4 @@ object WebSocketManager {
     }
 
 
-    fun disconnect() {
-        webSocket?.close(1000, "Normal closure")
-        client.dispatcher.executorService.shutdown()
-    }
 }

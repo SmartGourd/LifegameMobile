@@ -187,9 +187,9 @@ fun WritingScreen(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text,
                 capitalization = KeyboardCapitalization.None,
-                autoCorrect = false,
+                autoCorrectEnabled = false,
+                keyboardType = KeyboardType.Text,
                 imeAction = ImeAction.Done
             ),
             keyboardActions = KeyboardActions(
@@ -217,6 +217,11 @@ fun ConnectingScreen(
     var selectedTermIndex by remember { mutableStateOf<Int?>(null) }
     var selectedDefinitionIndex by remember { mutableStateOf<Int?>(null) }
 
+    // Get the first five pairs.
+    val termsToDisplay = termDefinitionPairsQueueThisRound.take(5)
+    // Shuffle the definitions for random order.
+    val definitionsShuffled = remember(termsToDisplay) { termsToDisplay.shuffled() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -236,13 +241,12 @@ fun ConnectingScreen(
                 .padding(top = 30.dp, bottom = 16.dp)
         )
         Row(modifier = Modifier.fillMaxSize()) {
-            // Left column: Terms
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 8.dp)
             ) {
-                itemsIndexed(termDefinitionPairsQueueThisRound.take(5)) { index, termDefinitionPair ->
+                itemsIndexed(termsToDisplay) { index, termDefinitionPair ->
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -250,10 +254,8 @@ fun ConnectingScreen(
                             .clickable {
                                 selectedTermIndex = index
                                 if (selectedDefinitionIndex != null) {
-                                    val term =
-                                        termDefinitionPairsQueueThisRound.take(5)[selectedTermIndex!!].term
-                                    val definition =
-                                        termDefinitionPairsQueueThisRound.take(5)[selectedDefinitionIndex!!].definition
+                                    val term = termsToDisplay[selectedTermIndex!!].term
+                                    val definition = definitionsShuffled[selectedDefinitionIndex!!].definition
                                     gamePageModel.pairConnected(term, definition)
                                     selectedTermIndex = null
                                     selectedDefinitionIndex = null
@@ -272,13 +274,13 @@ fun ConnectingScreen(
                     }
                 }
             }
-            // Right column: Definitions
+
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 8.dp)
             ) {
-                itemsIndexed(termDefinitionPairsQueueThisRound.take(5)) { index, termDefinitionPair ->
+                itemsIndexed(definitionsShuffled) { index, termDefinitionPair ->
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -286,10 +288,8 @@ fun ConnectingScreen(
                             .clickable {
                                 selectedDefinitionIndex = index
                                 if (selectedTermIndex != null) {
-                                    val term =
-                                        termDefinitionPairsQueueThisRound.take(5)[selectedTermIndex!!].term
-                                    val definition =
-                                        termDefinitionPairsQueueThisRound.take(5)[selectedDefinitionIndex!!].definition
+                                    val term = termsToDisplay[selectedTermIndex!!].term
+                                    val definition = definitionsShuffled[selectedDefinitionIndex!!].definition
                                     gamePageModel.pairConnected(term, definition)
                                     selectedTermIndex = null
                                     selectedDefinitionIndex = null

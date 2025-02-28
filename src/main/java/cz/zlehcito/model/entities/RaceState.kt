@@ -7,19 +7,6 @@ data class RaceRoundPlayerState (
     val percentageDone: Number,
 )
 
-data class RaceRoundPlayerStateResponse (
-    val raceGameRoundState: RaceRoundPlayerState
-)
-
-
-data class PersonalGameData (
-    val idGame: Number,
-    val idUser: String,
-    var mistakeCount: Int,
-    val correctCount: Int,
-    val totalCount: Int,
-)
-
 data class RacePlayerResult (
     val inGameName: String,
     val points: Int,

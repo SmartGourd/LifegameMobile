@@ -4,10 +4,10 @@
 
     <!-- LobbyPage Strings -->
     <string name="lobby_title">Lobby</string>
-    <string name="lobby_loading_games">Loading games ...</string>
+    <string name="lobby_loading_games">Loading games …</string>
 
     <!-- SearchBar Strings -->
-    <string name="searchbar_placeholder">Search games ...</string>
+    <string name="searchbar_placeholder">Search games …</string>
 
     <!-- GameItem Strings -->
     <string name="gameitem_players">Players: %1$d/%2$d</string>
@@ -21,7 +21,7 @@
     <string name="gamesetup_total_rounds">Total Rounds: %1$d</string>
     <string name="gamesetup_input_type">Input Type: %1$s</string>
     <string name="gamesetup_players_in_lobby">Players in Lobby:</string>
-    <string name="gamesetup_loading">Loading game data...</string>
+    <string name="gamesetup_loading">Loading game data…</string>
     <string name="gamesetup_enter_name">Enter your name</string>
     <string name="gamesetup_join_game">Join Game</string>
     <string name="gamesetup_leave_game">Leave Game</string>
