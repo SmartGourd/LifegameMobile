@@ -25,24 +25,39 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.zlehcito.model.entities.RacePlayerResult
 import cz.zlehcito.model.entities.TermDefinitionPair
-import cz.zlehcito.model.modelHandlers.GamePageModel
+import cz.zlehcito.viewmodel.GamePageViewModel // Added ViewModel import
 
 import cz.zlehcito.R
 import androidx.compose.ui.res.stringResource
+import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
 fun GamePage(
+    idGame: Int, // Renamed from idGame for consistency with ViewModel
+    idUser: String, // Renamed from idUser for consistency with ViewModel
     navigateToLobbyPage: () -> Unit,
+    viewModel: GamePageViewModel = koinViewModel(parameters = { parametersOf(idGame, idUser) }) // Inject ViewModel
 ) {
-    val gameSetupState by GamePageModel.gameSetupState.collectAsStateWithLifecycle()
-    val showResults by GamePageModel.showResults.collectAsStateWithLifecycle()
-    val playerFinalResults by GamePageModel.playerFinalResults.collectAsStateWithLifecycle()
-    val mistakeDictionary by GamePageModel.mistakeDictionary.collectAsStateWithLifecycle()
-    val secondsOfCountdown by GamePageModel.secondsOfCountdown.collectAsStateWithLifecycle()
-    val termDefinitionPairsQueueThisRound by GamePageModel.termDefinitionPairsQueueThisRound.collectAsStateWithLifecycle()
-    val currentTerm by GamePageModel.currentTerm.collectAsStateWithLifecycle()
-    val currentDefinition by GamePageModel.currentDefinition.collectAsStateWithLifecycle()
-    val answerCorrect by GamePageModel.lastOneWasCorrect.collectAsStateWithLifecycle()
+    // Observe navigation events from ViewModel
+    LaunchedEffect(viewModel.navigateToLobby) { // Observe the specific state flow
+        viewModel.navigateToLobby.collect { shouldNavigate ->
+            if (shouldNavigate) {
+                navigateToLobbyPage()
+                viewModel.onNavigationDone() // Reset the navigation trigger
+            }
+        }
+    }
+
+    val gameSetupState by viewModel.gameSetupState.collectAsStateWithLifecycle()
+    val showResults by viewModel.showResults.collectAsStateWithLifecycle()
+    val playerFinalResults by viewModel.playerFinalResults.collectAsStateWithLifecycle()
+    val mistakeDictionary by viewModel.mistakeDictionary.collectAsStateWithLifecycle()
+    val secondsOfCountdown by viewModel.secondsOfCountdown.collectAsStateWithLifecycle()
+    val termDefinitionPairsQueueThisRound by viewModel.termDefinitionPairsQueueThisRound.collectAsStateWithLifecycle()
+    val currentTerm by viewModel.currentTerm.collectAsStateWithLifecycle()
+    val currentDefinition by viewModel.currentDefinition.collectAsStateWithLifecycle()
+    val answerCorrect by viewModel.lastOneWasCorrect.collectAsStateWithLifecycle()
 
     Box(modifier = Modifier.fillMaxSize()) {
         val backgroundColor = if (answerCorrect) {
@@ -53,7 +68,7 @@ fun GamePage(
         when {
             showResults -> {
                 ResultsScreen(
-                    navigateToLobbyPage = navigateToLobbyPage,
+                    onNavigateToLobby = { viewModel.onNavigateToLobbyClicked() }, // Use ViewModel event
                     playerFinalResults = playerFinalResults,
                     mistakeDictionary = mistakeDictionary
                 )
@@ -67,16 +82,16 @@ fun GamePage(
                 WritingScreen(
                     currentTerm = currentTerm,
                     currentDefinition = currentDefinition,
-                    onDefinitionChange = { GamePageModel.setCurrentDefinition(it) },
-                    onSubmit = { GamePageModel.checkDefinitionCorrectness() },
+                    onDefinitionChange = { viewModel.setCurrentDefinition(it) },
+                    onSubmit = { viewModel.checkDefinitionCorrectness() },
                     backgroundColor = backgroundColor
                 )
             }
 
-            else -> {
+            else -> { // Assuming "Connecting" type if not "Writing" and not countdown/results
                 ConnectingScreen(
                     termDefinitionPairsQueueThisRound = termDefinitionPairsQueueThisRound,
-                    gamePageModel = GamePageModel,
+                    onPairConnected = { term, definition -> viewModel.pairConnected(term, definition) }, // Pass event handler
                     backgroundColor = backgroundColor
                 )
             }
@@ -86,7 +101,7 @@ fun GamePage(
 
 @Composable
 fun ResultsScreen(
-    navigateToLobbyPage: () -> Unit,
+    onNavigateToLobby: () -> Unit, // Changed from navigateToLobbyPage
     playerFinalResults: List<RacePlayerResult>,
     mistakeDictionary: Map<String, Int>
 ) {
@@ -117,7 +132,7 @@ fun ResultsScreen(
             }
         }
         Button(
-            onClick = { navigateToLobbyPage() },
+            onClick = onNavigateToLobby, // Use passed lambda
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(id = R.string.gamepage_result_back_to_lobby))
@@ -128,7 +143,7 @@ fun ResultsScreen(
         mistakeDictionary.forEach { mistake ->
             Text(
                 text = "${mistake.key} ${mistake.value} ${
-                    if (mistake.value > 1) stringResource(id = R.string.gamepage_result_mistakes) 
+                    if (mistake.value > 1) stringResource(id = R.string.gamepage_result_mistakes)
                     else stringResource(id = R.string.gamepage_result_mistake)
                 }",
                 fontSize = 16.sp
@@ -211,7 +226,7 @@ fun WritingScreen(
 @Composable
 fun ConnectingScreen(
     termDefinitionPairsQueueThisRound: List<TermDefinitionPair>,
-    gamePageModel: GamePageModel,
+    onPairConnected: (term: String, definition: String) -> Unit, // Changed from gamePageModel
     backgroundColor: Color
 ) {
     var selectedTermIndex by remember { mutableStateOf<Int?>(null) }
@@ -256,7 +271,7 @@ fun ConnectingScreen(
                                 if (selectedDefinitionIndex != null) {
                                     val term = termsToDisplay[selectedTermIndex!!].term
                                     val definition = definitionsShuffled[selectedDefinitionIndex!!].definition
-                                    gamePageModel.pairConnected(term, definition)
+                                    onPairConnected(term, definition) // Use callback
                                     selectedTermIndex = null
                                     selectedDefinitionIndex = null
                                 }
@@ -290,7 +305,7 @@ fun ConnectingScreen(
                                 if (selectedTermIndex != null) {
                                     val term = termsToDisplay[selectedTermIndex!!].term
                                     val definition = definitionsShuffled[selectedDefinitionIndex!!].definition
-                                    gamePageModel.pairConnected(term, definition)
+                                    onPairConnected(term, definition) // Use callback
                                     selectedTermIndex = null
                                     selectedDefinitionIndex = null
                                 }

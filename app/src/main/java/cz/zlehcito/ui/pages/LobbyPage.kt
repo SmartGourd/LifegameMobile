@@ -20,14 +20,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.zlehcito.R
 import cz.zlehcito.model.entities.Game
-import cz.zlehcito.model.modelHandlers.LobbyModel
+import cz.zlehcito.viewmodel.LobbyViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun LobbyPage(
-    navigateToGameSetupPage: (Int) -> Unit,
+    navigateToGameSetupPage: (gameId: Int) -> Unit,
+    viewModel: LobbyViewModel = koinViewModel() // Injected ViewModel
 ) {
-    val lobbyModel = remember { LobbyModel(navigateToGameSetupPage) }
-    val gamesList by lobbyModel.gamesList.collectAsStateWithLifecycle()
+    val gamesList by viewModel.gamesList.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
     val filteredGamesList = gamesList.filter { it.name.contains(searchQuery, ignoreCase = true) }
 
@@ -56,7 +57,7 @@ fun LobbyPage(
                 )
             } else if (filteredGamesList.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.lobby_loading_games),
+                    text = stringResource(R.string.lobby_no_games_found), // Consider a different string for no results after search
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -72,7 +73,7 @@ fun LobbyPage(
                                 .fillMaxWidth()
                                 .padding(bottom = 8.dp)
                                 .clickable {
-                                    lobbyModel.navigateToGameSetup(game.idGame)
+                                    navigateToGameSetupPage(game.idGame) // New: Call lambda passed from AppNavigator
                                 },
                             backgroundColor = if (index % 2 == 0)
                                 colorResource(id = R.color.lighter_blue)

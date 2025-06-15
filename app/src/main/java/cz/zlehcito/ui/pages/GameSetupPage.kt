@@ -9,15 +9,29 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.zlehcito.R
-import cz.zlehcito.model.modelHandlers.GameSetupModel
+import cz.zlehcito.viewmodel.GameSetupViewModel
+import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
 fun GameSetupPage(
+    idGame: Int, // Received from Navigation
     navigateToLobbyPage: () -> Unit,
+    navigateToGamePage: (gameId: Int, userId: String) -> Unit, // For navigation triggered by ViewModel event
+    viewModel: GameSetupViewModel = koinViewModel(parameters = { parametersOf(idGame) }) // Pass idGame via parameters for SavedStateHandle
 ) {
-    val gameSetupState by GameSetupModel.gameSetupState.collectAsStateWithLifecycle()
-    val gameKey by GameSetupModel.gameKey.collectAsStateWithLifecycle()
+    val gameSetupState by viewModel.gameSetupState.collectAsStateWithLifecycle()
+    val gameKey by viewModel.gameKey.collectAsStateWithLifecycle()
     var playerName by rememberSaveable { mutableStateOf("") }
+
+    // Observe navigation event from ViewModel
+    val navigateToGameEvent by viewModel.navigateToGameAction.collectAsStateWithLifecycle()
+    LaunchedEffect(navigateToGameEvent) {
+        navigateToGameEvent?.data?.let { (gameId, userId) ->
+            navigateToGamePage(gameId, userId)
+            viewModel.consumeNavigationEvent() // Reset the event after navigation
+        }
+    }
 
     Scaffold { innerPadding ->
         Column(
@@ -51,38 +65,36 @@ fun GameSetupPage(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            gameKey.let { gameKey ->
-                if (gameKey.idUser.isEmpty() || gameKey.keyType == "Invalid") {
-                    // Input field for player name using a string resource label
-                    OutlinedTextField(
-                        value = playerName,
-                        onValueChange = { playerName = it },
-                        label = { Text(stringResource(R.string.gamesetup_enter_name)) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { GameSetupModel.sendJoinGameRequest(playerName) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.gamesetup_join_game))
-                    }
-                } else {
-                    Button(
-                        onClick = { GameSetupModel.sendLeaveGameRequest(gameKey.idUser) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.gamesetup_leave_game))
-                    }
+            if (gameKey.idUser.isEmpty() || gameKey.keyType == "Invalid") {
+                OutlinedTextField(
+                    value = playerName,
+                    onValueChange = { playerName = it },
+                    label = { Text(stringResource(R.string.gamesetup_enter_name)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { viewModel.sendJoinGameRequest(playerName) }, // Use ViewModel
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.gamesetup_join_game))
+                }
+            } else {
+                Button(
+                    onClick = { viewModel.sendLeaveGameRequest() }, // Use ViewModel
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.gamesetup_leave_game))
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
-                    GameSetupModel.sendLeaveGameRequest(gameKey.idUser)
+                    // If user is in game, send leave request.
+                    if (gameKey.idUser.isNotEmpty() && gameKey.keyType != "Invalid") {
+                        viewModel.sendLeaveGameRequest()
+                    }
                     navigateToLobbyPage()
                 },
                 modifier = Modifier.fillMaxWidth()

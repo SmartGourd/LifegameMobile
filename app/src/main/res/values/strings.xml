@@ -5,6 +5,7 @@
     <!-- LobbyPage Strings -->
     <string name="lobby_title">Lobby</string>
     <string name="lobby_loading_games">Loading games …</string>
+    <string name="lobby_no_games_found">No games found!</string>
 
     <!-- SearchBar Strings -->
     <string name="searchbar_placeholder">Search games …</string>

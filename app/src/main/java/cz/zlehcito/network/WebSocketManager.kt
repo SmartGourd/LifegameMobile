@@ -2,14 +2,17 @@ package cz.zlehcito.network
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
-//import okhttp3.Response
 //import java.security.cert.X509Certificate
 //import javax.net.ssl.*
 
@@ -21,6 +24,11 @@ object WebSocketManager {
     //private val client = getUnsafeOkHttpClient()
 
     private var webSocket: WebSocket? = null
+
+    private val _isConnected = MutableStateFlow(false)
+    val isConnectedFlow: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    fun isConnected(): Boolean = _isConnected.value
 
     private val messageHandlers: MutableMap<String, (JSONObject) -> Unit> = mutableMapOf()
     /* Used for development with connection to localhost websocket server
@@ -50,11 +58,29 @@ object WebSocketManager {
     */
 
     fun connect() {
-        if (webSocket == null) {
+        if (webSocket == null && !_isConnected.value) { // Connect only if not already connected or trying
             val request = Request.Builder().url(URL).build()
             webSocket = client.newWebSocket(request, object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    _isConnected.value = true
+                    Log.i("WebSocketManager", "Connection Opened")
+                }
+
                 override fun onMessage(webSocket: WebSocket, text: String) {
                     handleIncomingMessage(text)
+                }
+
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                    Log.i("WebSocketManager", "Connection Closing: $code / $reason")
+                    _isConnected.value = false
+                    this@WebSocketManager.webSocket = null
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    Log.e("WebSocketManager", "Connection Failure: ${'$'}{t.message}", t)
+                    _isConnected.value = false
+                    this@WebSocketManager.webSocket = null
+                    // Optionally, implement retry logic here or notify listeners
                 }
             })
         }
@@ -73,37 +99,21 @@ object WebSocketManager {
     }
 
     fun sendMessage(message: JSONObject) {
-        // If the webSocket is null, try connecting and then send after a delay
-        if (webSocket == null) {
-            Log.w("WebSocketManager", "WebSocket is null. Reconnecting...")
-            connect()
+        if (!isConnected()) { // Check connection status using the new method
+            Log.w("WebSocketManager", "WebSocket is not connected. Attempting to connect...")
+            connect() // Attempt to connect
+            // Delay sending the message to give time for the connection to establish
             Handler(Looper.getMainLooper()).postDelayed({
-                webSocket?.let { ws ->
-                    if (!ws.send(message.toString())) {
-                        Log.e("WebSocketManager", "Failed to send message after reconnecting")
-                    } else {
-                        Log.d("WebSocketManager", "Message sent successfully after reconnecting")
-                    }
-                } ?: Log.e("WebSocketManager", "WebSocket still null after reconnecting")
-            }, 1000) // Delay of 1 second (adjust if needed)
+                if (isConnected()) {
+                    webSocket?.send(message.toString())
+                    Log.d("WebSocketManager", "Message sent after reconnecting.")
+                } else {
+                    Log.e("WebSocketManager", "Failed to send message. WebSocket still not connected after attempting to reconnect.")
+                }
+            }, 2000) // Increased delay to 2 seconds
         } else {
-            // Attempt to send the message
-            if (!webSocket!!.send(message.toString())) {
-                Log.w("WebSocketManager", "Send returned false. Reconnecting...")
-                webSocket = null
-                connect()
-                Handler(Looper.getMainLooper()).postDelayed({
-                    webSocket?.let { ws ->
-                        if (!ws.send(message.toString())) {
-                            Log.e("WebSocketManager", "Failed to send message after reconnecting")
-                        } else {
-                            Log.d("WebSocketManager", "Message sent successfully after reconnecting")
-                        }
-                    } ?: Log.e("WebSocketManager", "WebSocket still null after reconnecting")
-                }, 1000)
-            } else {
-                Log.d("WebSocketManager", "Message sent successfully")
-            }
+            webSocket?.send(message.toString())
+            Log.d("WebSocketManager", "Message sent successfully.")
         }
     }
 
