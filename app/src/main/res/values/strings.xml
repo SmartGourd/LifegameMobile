@@ -11,7 +11,7 @@
     <string name="searchbar_placeholder">Search games …</string>
 
     <!-- GameItem Strings -->
-    <string name="gameitem_players">Players: %1$d/%2$d</string>
+    <string name="gameitem_players">Players: %1$d</string>
     <string name="gameitem_type">Type: %1$s</string>
 
     <!-- GameSetupPage Strings (if needed elsewhere) -->

@@ -129,7 +129,7 @@ fun GameItem(game: Game, modifier: Modifier = Modifier, backgroundColor: Color) 
                 .padding(end = 8.dp)
         )
         Text(
-            text = stringResource(R.string.gameitem_players, game.playerCount, game.maxPlayers),
+            text = stringResource(R.string.gameitem_players, game.playerCount),
             color = colorResource(id = R.color.text_grey),
             fontSize = 16.sp,
             modifier = Modifier.padding(end = 16.dp)
