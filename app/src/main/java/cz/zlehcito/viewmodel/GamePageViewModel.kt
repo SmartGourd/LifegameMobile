@@ -1,5 +1,6 @@
 package cz.zlehcito.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -81,13 +82,12 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     }
 
     private fun registerWebSocketHandlers() {
-        WebSocketManager.registerHandler("GET_GAME") { json ->
+        WebSocketManager.registerHandler("RACE_GET_GAME") { json ->
             _gameSetupState.value = parseGameSetupStateJson(json.toString())
         }
 
         WebSocketManager.registerHandler("RACE_ROUND_START") { json ->
             currentRoundNumber = parseStartRaceRoundJson(json.toString()).toInt()
-            setupTermDefinitionQueueForThisRound(currentRoundNumber)
             startCountdown()
             // sendRaceNewTermRequest() // This might be called after countdown or based on game logic
         }
@@ -99,7 +99,6 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
             if (!(_lastOneWasCorrect.value)) {
                 _currentDefinition.value =
                     submitAnswerResponse?.termDefinitionPair?.definition ?: ""
-                addMistake(_currentTerm.value, _currentDefinition.value) // Pass current definition if it was wrong
             }
             // If end of round, RACE_ROUND_START or RACE_END should be triggered by server.
             // If not end of round and answer was correct, server might send RACE_NEW_TERM or client requests it.
@@ -129,7 +128,6 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         currentRoundNumber = 1 // Reset round number
 
         if (WebSocketManager.isConnected()) {
-            sendSubscriptionPutGameRunningRequest()
             sendGetGameRequest() // To get initial game setup like terms
             // Initial RACE_ROUND_START should be sent by server after subscription or game start signal
             // Or, if client needs to initiate the first round start signal:
@@ -137,17 +135,6 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         } else {
             // Handle WebSocket not connected
         }
-    }
-
-    private fun sendSubscriptionPutGameRunningRequest() {
-        val sendSubscriptionPutRequest = JSONObject().apply {
-            put("${'$'}type", "SUBSCRIPTION_PUT")
-            put("webSocketSubscriptionPut", JSONObject().apply {
-                put("idGame", _idGame)
-                put("subscriptionType", "GameRunning")
-            })
-        }
-        WebSocketManager.sendMessage(sendSubscriptionPutRequest)
     }
 
     private fun startCountdown() {
@@ -161,45 +148,6 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                  sendRaceNewTermRequest() // Request first term after countdown finishes
             }
         }
-    }
-
-    private fun setupTermDefinitionQueueForThisRound(currentRound: Int) {
-        /*
-        if (currentRound <= 0) return
-        val gameSetup = _gameSetupState.value ?: return
-
-        val totalRounds = gameSetup.roundCount
-        val termsAndDefinitions = gameSetup.termDefinitionPairs
-
-        if (termsAndDefinitions.isEmpty() || totalRounds <= 0) return
-
-        val roundSize = termsAndDefinitions.size / totalRounds
-        val extraItems = termsAndDefinitions.size % totalRounds
-
-        val startIdx = (currentRound - 1) * roundSize + min(currentRound - 1, extraItems)
-        val endIdx = min(
-            currentRound * roundSize + min(currentRound, extraItems),
-            termsAndDefinitions.size
-        )
-        if (startIdx >= endIdx || startIdx < 0 || endIdx > termsAndDefinitions.size) return
-
-        val newList = termsAndDefinitions.subList(startIdx, endIdx).toMutableList()
-        newList.shuffle()
-        _termDefinitionPairsQueueThisRound.value = newList
-
-         */
-    }
-
-    private fun addMistake(term: String, definitionProvided: String) {
-        /*
-        // Find the correct definition for the term from the game setup state if available
-        val correctDefinition = _gameSetupState.value?.termDefinitionPairs?.find { it.term == term }?.definition ?: "[Correct definition not found]"
-        val key = "Term: '$term' - Your answer: '$definitionProvided' (Correct: '$correctDefinition')"
-        _mistakeDictionary.value = _mistakeDictionary.value.toMutableMap().apply {
-            put(key, getOrDefault(key, 0) + 1)
-        }
-
-         */
     }
 
     fun checkDefinitionCorrectness() {
@@ -240,9 +188,9 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                 put("IdGame", _idGame)
                 put("IdUser", _idUser)
             })
-            put("answer", JSONObject().apply {
-                put("term", term)
-                put("definition", definition)
+            put("Answer", JSONObject().apply {
+                put("Term", term)
+                put("Definition", definition)
             })
         }
         WebSocketManager.sendMessage(personalGameDataRequest)
@@ -261,8 +209,11 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
 
     private fun sendGetGameRequest() {
         val getGameRequest = JSONObject().apply {
-            put("${'$'}type", "GET_GAME")
-            put("idGame", _idGame)
+            put("${'$'}type", "RACE_GET_GAME")
+            put("gameManipulationKey", JSONObject().apply {
+                put("IdGame", _idGame)
+                put("IdUser", _idUser)
+            })
         }
         WebSocketManager.sendMessage(getGameRequest)
     }
