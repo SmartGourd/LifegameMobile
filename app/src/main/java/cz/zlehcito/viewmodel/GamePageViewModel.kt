@@ -64,47 +64,38 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     val mistakePairs: StateFlow<Map<String, Int>> = _mistakePairs.asStateFlow()
 
     // Writing Game Specific State
-    private val _writing_currentTerm = MutableStateFlow<String?>(null)
-    val writing_currentTerm: StateFlow<String?> = _writing_currentTerm.asStateFlow()
-
-    private val _writing_userResponse = MutableStateFlow("")
-    val writing_userResponse: StateFlow<String> = _writing_userResponse.asStateFlow()
-
-    private val _writing_isWrongAnswer = MutableStateFlow(false)
-    val writing_isWrongAnswer: StateFlow<Boolean> = _writing_isWrongAnswer.asStateFlow()
+    // private val _writing_currentTerm = MutableStateFlow<String?>(null)
+    // val writing_currentTerm: StateFlow<String?> = _writing_currentTerm.asStateFlow()
+    // private val _writing_userResponse = MutableStateFlow("")
+    // val writing_userResponse: StateFlow<String> = _writing_userResponse.asStateFlow()
+    // private val _writing_isWrongAnswer = MutableStateFlow(false)
+    // val writing_isWrongAnswer: StateFlow<Boolean> = _writing_isWrongAnswer.asStateFlow()
 
     // Connecting Game Specific State
-    private var fullTermDefinitionQueue: List<TermDefinitionPair> = emptyList() // Full list for the game
+    private var unansweredPairsInCurrentRound: MutableList<TermDefinitionPair> = mutableListOf()
     private val _connecting_termDefinitionQueueThisRound = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
     val connecting_termDefinitionQueueThisRound: StateFlow<List<TermDefinitionPair>> = _connecting_termDefinitionQueueThisRound.asStateFlow()
-
-    // Stores all pairs for the current round that are not yet correctly answered.
-    private var unansweredPairsInCurrentRound: MutableList<TermDefinitionPair> = mutableListOf()
-
     private val _connecting_displayedTerms = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
     val connecting_displayedTerms: StateFlow<List<TermDefinitionPair>> = _connecting_displayedTerms.asStateFlow()
-
     private val _connecting_displayedDefinitions = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
     val connecting_displayedDefinitions: StateFlow<List<TermDefinitionPair>> = _connecting_displayedDefinitions.asStateFlow()
-    
     private val _connecting_selectedTerm = MutableStateFlow<TermDefinitionPair?>(null)
     val connecting_selectedTerm: StateFlow<TermDefinitionPair?> = _connecting_selectedTerm.asStateFlow()
-
     private val _connecting_selectedDefinition = MutableStateFlow<TermDefinitionPair?>(null)
     val connecting_selectedDefinition: StateFlow<TermDefinitionPair?> = _connecting_selectedDefinition.asStateFlow()
-
     private val _connecting_connectedCount = MutableStateFlow(0)
     val connecting_connectedCount: StateFlow<Int> = _connecting_connectedCount.asStateFlow()
-
     private val _connecting_mistakesCount = MutableStateFlow(0) // Mistakes within the connecting component
     val connecting_mistakesCount: StateFlow<Int> = _connecting_mistakesCount.asStateFlow()
-
     private val _connecting_feedback = MutableStateFlow<String?>(null) // "correct" or "incorrect"
     val connecting_feedback: StateFlow<String?> = _connecting_feedback.asStateFlow()
 
 
     private val _navigateToLobby = MutableStateFlow<Boolean>(false)
     val navigateToLobby: StateFlow<Boolean> = _navigateToLobby.asStateFlow()
+
+    val writingGameManager = WritingGameManager()
+    val connectingGameManager = ConnectingGameManager(MAX_VISIBLE_CONNECTING_PAIRS)
 
     init {
         Log.d("GamePageVM", "Initializing with idGame: $_idGame, idUser: $_idUser")
@@ -118,7 +109,7 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                 val response = Gson().fromJson(json.toString(), GetRaceGameResponse::class.java)
                 _gameDetails.value = response.game
                 _inputType.value = response.game.inputType
-                fullTermDefinitionQueue = response.game.termDefinitionPairs ?: emptyList()
+                // fullTermDefinitionQueue = response.game.termDefinitionPairs ?: emptyList()
                 
                 // If game is already over (e.g., page refresh)
                 if (response.game.currentRound == -1) {
@@ -150,9 +141,7 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
             viewModelScope.launch(Dispatchers.Default) {
                 if (_inputType.value == "Writing") {
                     val response = Gson().fromJson(json.toString(), NewTermResponse::class.java)
-                    _writing_currentTerm.value = response.term
-                    _writing_userResponse.value = ""
-                    _writing_isWrongAnswer.value = false
+                    writingGameManager.setCurrentTerm(response.term)
                 }
             }
         }
@@ -161,38 +150,32 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
             viewModelScope.launch(Dispatchers.Default) {
                 val response = Gson().fromJson(json.toString(), SubmitAnswerResponse::class.java)
                 if (_inputType.value == "Writing") {
-                    _writing_isWrongAnswer.value = !response.answerCorrect
-                    _writing_currentTerm.value = response.termDefinitionPair.term
-                    if (!response.answerCorrect) {
-                        _writing_userResponse.value = response.termDefinitionPair.definition
-                        updateMistakePairs(response.termDefinitionPair.term)
-                    } else {
-                        _writing_userResponse.value = ""
-                    }
+                    writingGameManager.setWrongAnswer(!response.answerCorrect, if (!response.answerCorrect) response.termDefinitionPair.definition else null)
+                    writingGameManager.setCurrentTerm(response.termDefinitionPair.term)
                     if (response.answerCorrect && !response.endOfRound) {
                         sendRaceNewTermRequest()
                     }
                 } else if (_inputType.value == "Connecting") {
-                    _connecting_feedback.value = if (response.answerCorrect) "correct" else "incorrect"
-                    viewModelScope.launch { // Clear feedback after a short delay
+                    connectingGameManager.setFeedback(if (response.answerCorrect) "correct" else "incorrect")
+                    viewModelScope.launch {
                         delay(1000)
-                        _connecting_feedback.value = null
+                        connectingGameManager.setFeedback(null)
                     }
                     if (response.answerCorrect) {
-                        _connecting_connectedCount.value += 1
+                        // _connecting_connectedCount.value += 1
                         val correctTerm = response.termDefinitionPair.term
                         val correctDefinition = response.termDefinitionPair.definition
                         unansweredPairsInCurrentRound.removeAll { it.term == correctTerm && it.definition == correctDefinition }
                         refreshDisplayedConnectingPairs()
                     } else {
-                        _connecting_mistakesCount.value += 1
+                        // _connecting_mistakesCount.value += 1
                         updateMistakePairs(response.termDefinitionPair.term)
                     }
-                    _connecting_selectedTerm.value = null
-                    _connecting_selectedDefinition.value = null
-                    if (_connecting_displayedTerms.value.isEmpty() && !response.endOfRound) {
-                        Log.d("GamePageVM", "Connecting: All pairs for this segment seem connected by client.")
-                    }
+                    // _connecting_selectedTerm.value = null
+                    // _connecting_selectedDefinition.value = null
+                    // if (_connecting_displayedTerms.value.isEmpty() && !response.endOfRound) {
+                    //     Log.d("GamePageVM", "Connecting: All pairs for this segment seem connected by client.")
+                    // }
                 }
             }
         }
@@ -229,7 +212,7 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     private fun prepareConnectingGameRound(roundNumber: Int) {
         val game = _gameDetails.value ?: return
         val roundCount = game.roundCount.takeIf { it > 0 } ?: 1 // Avoid division by zero if roundCount is 0
-        val totalPairs = fullTermDefinitionQueue.size
+        val totalPairs = game.termDefinitionPairs?.size ?: 0
 
         val roundSize = totalPairs / roundCount
         val extraItems = totalPairs % roundCount
@@ -238,45 +221,27 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         val endIdx = minOf(roundNumber * roundSize + minOf(roundNumber, extraItems), totalPairs)
         
         if (startIdx >= endIdx) {
-            _connecting_termDefinitionQueueThisRound.value = emptyList()
             unansweredPairsInCurrentRound.clear()
-            refreshDisplayedConnectingPairs() // Will set displayed lists to empty
-            Log.w("GamePageVM", "Connecting: No pairs for round $roundNumber. Start: $startIdx, End: $endIdx, Total: $totalPairs")
+            connectingGameManager.setDisplayedPairs(emptyList(), emptyList(), 0)
             return
         }
 
-        val pairsForRound = fullTermDefinitionQueue.slice(startIdx until endIdx).toMutableList()
-        
-        _connecting_termDefinitionQueueThisRound.value = pairsForRound
+        val pairsForRound = game.termDefinitionPairs!!.slice(startIdx until endIdx).toMutableList()
         unansweredPairsInCurrentRound = ArrayList(pairsForRound) // Initialize with a copy
-
-        refreshDisplayedConnectingPairs() // Setup initial display
-        
-        _connecting_connectedCount.value = 0
-        _connecting_mistakesCount.value = 0
-        _connecting_selectedTerm.value = null
-        _connecting_selectedDefinition.value = null
-        Log.d("GamePageVM", "Connecting: Prepared round $roundNumber with ${pairsForRound.size} pairs.")
+        // refreshDisplayedConnectingPairs()
+        connectingGameManager.setConnectedCount(0)
+        connectingGameManager.setMistakesCount(0)
+        connectingGameManager.setSelectedTerm(null)
+        connectingGameManager.setSelectedDefinition(null)
     }
 
     private fun refreshDisplayedConnectingPairs() {
-        // Take up to MAX_VISIBLE_CONNECTING_PAIRS unanswered pairs
-        val visiblePairsSource = unansweredPairsInCurrentRound.take(MAX_VISIBLE_CONNECTING_PAIRS).toMutableList()
-
-        // Create terms list for display (shuffled)
-        // These TermDefinitionPair objects are temporary for display; their 'term' or 'definition' is key.
-        val termsForDisplay = visiblePairsSource.map { TermDefinitionPair(term = it.term, definition = "") }.toMutableList()
-        Collections.shuffle(termsForDisplay)
-        _connecting_displayedTerms.value = termsForDisplay
-
-        // Create definitions list for display (shuffled) from the same source pairs
-        val definitionsForDisplay = visiblePairsSource.map { TermDefinitionPair(term = "", definition = it.definition) }.toMutableList()
-        Collections.shuffle(definitionsForDisplay)
-        _connecting_displayedDefinitions.value = definitionsForDisplay
-
-        Log.d("GamePageVM", "Refreshed displayed pairs. Terms: ${termsForDisplay.size}, Defs: ${definitionsForDisplay.size}. Unanswered left: ${unansweredPairsInCurrentRound.size}")
+        // Logic to refresh the displayed terms and definitions based on unansweredPairsInCurrentRound
+        val displayedTerms = unansweredPairsInCurrentRound.shuffled().take(MAX_VISIBLE_CONNECTING_PAIRS)
+        val displayedDefinitions = unansweredPairsInCurrentRound.shuffled().take(MAX_VISIBLE_CONNECTING_PAIRS)
+        
+        connectingGameManager.setDisplayedPairs(displayedTerms, displayedDefinitions, displayedTerms.size)
     }
-
 
     fun sendGetGameRequest() {
         val request = JSONObject().apply {
@@ -303,55 +268,50 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     }
 
     fun submitWritingAnswer() {
-        if (_inputType.value == "Writing" && _writing_currentTerm.value != null) {
+        if (_inputType.value == "Writing" && writingGameManager.uiState.value.currentTerm != null) {
             val request = JSONObject().apply {
-                put("\$type", "RACE_SUBMIT_ANSWER")
+                put("$" + "type", "RACE_SUBMIT_ANSWER")
                 put("gameManipulationKey", JSONObject().apply {
                     put("idGame", _idGame)
                     put("idUser", _idUser)
                 })
                 put("answer", JSONObject().apply {
-                    put("term", _writing_currentTerm.value)
-                    put("definition", _writing_userResponse.value)
+                    put("term", writingGameManager.uiState.value.currentTerm)
+                    put("definition", writingGameManager.uiState.value.userResponse)
                 })
             }
             WebSocketManager.sendMessage(request)
-            Log.d("GamePageVM", "Sent RACE_SUBMIT_ANSWER for Writing: Term='${_writing_currentTerm.value}', Def='${_writing_userResponse.value}'")
+            Log.d("GamePageVM", "Sent RACE_SUBMIT_ANSWER for Writing: Term='${writingGameManager.uiState.value.currentTerm}', Def='${writingGameManager.uiState.value.userResponse}'")
         }
     }
     
     fun setWritingUserResponse(response: String) {
-        _writing_userResponse.value = response
+        writingGameManager.setUserResponse(response)
     }
 
     fun selectConnectingTerm(termPair: TermDefinitionPair) {
-        _connecting_selectedTerm.value = termPair
+        connectingGameManager.setSelectedTerm(termPair)
         checkConnectingMatch()
     }
 
     fun selectConnectingDefinition(defPair: TermDefinitionPair) {
-        _connecting_selectedDefinition.value = defPair
+        connectingGameManager.setSelectedDefinition(defPair)
         checkConnectingMatch()
     }
 
     private fun checkConnectingMatch() {
-        val term = _connecting_selectedTerm.value
-        val definition = _connecting_selectedDefinition.value
-
+        val term = connectingGameManager.uiState.value.selectedTerm
+        val definition = connectingGameManager.uiState.value.selectedDefinition
         if (term != null && definition != null) {
-            // Find the original full pair for the selected term
-            val originalPairForTerm = _connecting_termDefinitionQueueThisRound.value.find { it.term == term.term }
-
+            // We need to keep track of unansweredPairsInCurrentRound in the ViewModel, since it's not in the manager's UiState
+            val originalPairForTerm = unansweredPairsInCurrentRound.find { it.term == term.term }
             if (originalPairForTerm != null && originalPairForTerm.definition == definition.definition) {
-                // This is a client-side pre-check. Server will confirm.
-                // Send to server
                 sendConnectingAnswer(originalPairForTerm.term, originalPairForTerm.definition)
-            } else if (originalPairForTerm != null) { // Mismatch
-                sendConnectingAnswer(originalPairForTerm.term, definition.definition) // Send the incorrect attempt
+            } else if (originalPairForTerm != null) {
+                sendConnectingAnswer(originalPairForTerm.term, definition.definition)
             } else {
-                // Should not happen if termPair.term is from displayedTerms
-                 _connecting_selectedTerm.value = null
-                 _connecting_selectedDefinition.value = null
+                connectingGameManager.setSelectedTerm(null)
+                connectingGameManager.setSelectedDefinition(null)
             }
         }
     }

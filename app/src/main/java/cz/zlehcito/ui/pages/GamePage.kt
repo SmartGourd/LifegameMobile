@@ -78,38 +78,28 @@ fun GamePage(
                 CountdownScreen(seconds = countdownSeconds)
             }
             inputType == "Writing" -> {
-                val currentTerm by viewModel.writing_currentTerm.collectAsStateWithLifecycle()
-                val userResponse by viewModel.writing_userResponse.collectAsStateWithLifecycle()
-                val isWrong by viewModel.writing_isWrongAnswer.collectAsStateWithLifecycle()
+                val writingUiState by viewModel.writingGameManager.uiState.collectAsStateWithLifecycle()
                 WritingScreen(
-                    currentTerm = currentTerm ?: stringResource(R.string.gamepage_waiting_for_term),
-                    userResponse = userResponse,
+                    currentTerm = writingUiState.currentTerm ?: stringResource(R.string.gamepage_waiting_for_term),
+                    userResponse = writingUiState.userResponse,
                     onUserResponseChange = { viewModel.setWritingUserResponse(it) },
                     onSubmit = { viewModel.submitWritingAnswer() },
-                    isWrong = isWrong
+                    isWrong = writingUiState.isWrongAnswer
                 )
             }
             inputType == "Connecting" -> {
-                val displayedTerms by viewModel.connecting_displayedTerms.collectAsStateWithLifecycle()
-                val displayedDefinitions by viewModel.connecting_displayedDefinitions.collectAsStateWithLifecycle()
-                val selectedTerm by viewModel.connecting_selectedTerm.collectAsStateWithLifecycle()
-                val selectedDefinition by viewModel.connecting_selectedDefinition.collectAsStateWithLifecycle()
-                val connectedCount by viewModel.connecting_connectedCount.collectAsStateWithLifecycle()
-                val mistakesCount by viewModel.connecting_mistakesCount.collectAsStateWithLifecycle()
-                val feedback by viewModel.connecting_feedback.collectAsStateWithLifecycle()
-                val totalPairsInRound = viewModel.connecting_termDefinitionQueueThisRound.collectAsStateWithLifecycle().value.size
-
+                val connectingUiState by viewModel.connectingGameManager.uiState.collectAsStateWithLifecycle()
                 ConnectingScreen(
-                    displayedTerms = displayedTerms,
-                    displayedDefinitions = displayedDefinitions,
+                    displayedTerms = connectingUiState.displayedTerms,
+                    displayedDefinitions = connectingUiState.displayedDefinitions,
                     onTermSelected = { viewModel.selectConnectingTerm(it) },
                     onDefinitionSelected = { viewModel.selectConnectingDefinition(it) },
-                    selectedTerm = selectedTerm,
-                    selectedDefinition = selectedDefinition,
-                    connectedCount = connectedCount,
-                    mistakesCount = mistakesCount,
-                    totalPairsInRound = totalPairsInRound,
-                    feedback = feedback
+                    selectedTerm = connectingUiState.selectedTerm,
+                    selectedDefinition = connectingUiState.selectedDefinition,
+                    connectedCount = connectingUiState.connectedCount,
+                    mistakesCount = connectingUiState.mistakesCount,
+                    totalPairsInRound = connectingUiState.totalPairsInRound,
+                    feedback = connectingUiState.feedback
                 )
             }
             else -> {
