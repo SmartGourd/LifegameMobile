@@ -10,6 +10,9 @@ import cz.zlehcito.network.WebSocketManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -52,5 +55,19 @@ class LobbyViewModel : ViewModel() {
             Log.e("LobbyViewModel", "Error parsing games list", e)
             emptyList() // Return empty list on parsing error
         }
+    }
+
+    fun getFilteredGames(query: String): StateFlow<List<LobbyGameForList>> {
+        return gamesList
+            .map { list ->
+                list.filter {
+                    it.name.contains(query, ignoreCase = true) && it.gameType == "Race"
+                }
+            }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                emptyList()
+            )
     }
 }

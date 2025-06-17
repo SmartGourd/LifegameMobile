@@ -31,9 +31,7 @@ fun LobbyPage(
 ) {
     val gamesList by viewModel.gamesList.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
-    val filteredGamesList = gamesList.filter {
-        it.name.contains(searchQuery, ignoreCase = true) && it.gameType == "Race"
-    }
+    val filteredGamesList by viewModel.getFilteredGames(searchQuery).collectAsStateWithLifecycle()
 
     // Call subscription method when LobbyPage becomes active
     LaunchedEffect(Unit) {
