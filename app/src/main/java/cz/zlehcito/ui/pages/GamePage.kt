@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -86,18 +87,28 @@ fun GamePage(
             }
             inputType == "Connecting" -> {
                 val connectingUiState by viewModel.connectingGameManager.uiState.collectAsStateWithLifecycle()
-                ConnectingScreen(
-                    displayedTerms = connectingUiState.displayedTerms,
-                    displayedDefinitions = connectingUiState.displayedDefinitions,
-                    onTermSelected = { viewModel.selectConnectingTerm(it) },
-                    onDefinitionSelected = { viewModel.selectConnectingDefinition(it) },
-                    selectedTerm = connectingUiState.selectedTerm,
-                    selectedDefinition = connectingUiState.selectedDefinition,
-                    connectedCount = connectingUiState.connectedCount,
-                    mistakesCount = connectingUiState.mistakesCount,
-                    totalPairsInRound = connectingUiState.totalPairsInRound,
-                    feedback = connectingUiState.feedback
-                )
+                if (displayResults) {
+                    ResultsScreen(
+                        onNavigateToLobby = { viewModel.onNavigateToLobbyClicked() },
+                        playerFinalResults = playerFinalResults,
+                        mistakePairs = mistakePairs
+                    )
+                } else if (connectingUiState.roundFinished) {
+                    // Optionally, you can show a waiting message or nothing here
+                } else {
+                    ConnectingScreen(
+                        displayedTerms = connectingUiState.displayedTerms,
+                        displayedDefinitions = connectingUiState.displayedDefinitions,
+                        onTermSelected = { viewModel.selectConnectingTerm(it) },
+                        onDefinitionSelected = { viewModel.selectConnectingDefinition(it) },
+                        selectedTermIndex = connectingUiState.selectedTermIndex,
+                        selectedDefinitionIndex = connectingUiState.selectedDefinitionIndex,
+                        connectedCount = connectingUiState.connectedCount,
+                        mistakesCount = connectingUiState.mistakesCount,
+                        totalPairsInRound = connectingUiState.totalPairsInRound,
+                        feedback = connectingUiState.feedback
+                    )
+                }
             }
             else -> {
                 // Loading state or placeholder if gameDetails or inputType is not yet available
@@ -234,10 +245,10 @@ fun WritingScreen(
 fun ConnectingScreen(
     displayedTerms: List<TermDefinitionPair>,
     displayedDefinitions: List<TermDefinitionPair>,
-    onTermSelected: (TermDefinitionPair) -> Unit,
-    onDefinitionSelected: (TermDefinitionPair) -> Unit,
-    selectedTerm: TermDefinitionPair?,
-    selectedDefinition: TermDefinitionPair?,
+    onTermSelected: (Int) -> Unit,
+    onDefinitionSelected: (Int) -> Unit,
+    selectedTermIndex: Int?,
+    selectedDefinitionIndex: Int?,
     connectedCount: Int,
     mistakesCount: Int,
     totalPairsInRound: Int,
@@ -276,11 +287,11 @@ fun ConnectingScreen(
                     Text(stringResource(R.string.gamepage_connecting_no_terms), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
                 } else {
                     LazyColumn {
-                        items(displayedTerms, key = { it.term }) { termPair ->
+                        itemsIndexed(displayedTerms) { index, termPair ->
                             SelectableItem(
                                 text = termPair.term,
-                                isSelected = termPair.term == selectedTerm?.term,
-                                onClick = { onTermSelected(termPair) }
+                                isSelected = index == selectedTermIndex,
+                                onClick = { onTermSelected(index) }
                             )
                         }
                     }
@@ -296,11 +307,11 @@ fun ConnectingScreen(
                      Text(stringResource(R.string.gamepage_connecting_no_definitions), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
                 } else {
                     LazyColumn {
-                        items(displayedDefinitions, key = { it.definition }) { defPair ->
+                        itemsIndexed(displayedDefinitions) { index, defPair ->
                             SelectableItem(
                                 text = defPair.definition,
-                                isSelected = defPair.definition == selectedDefinition?.definition,
-                                onClick = { onDefinitionSelected(defPair) }
+                                isSelected = index == selectedDefinitionIndex,
+                                onClick = { onDefinitionSelected(index) }
                             )
                         }
                     }

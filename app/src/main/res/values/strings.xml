@@ -57,5 +57,8 @@
     <string name="gamepage_connecting_connected">Connected</string>
     <string name="gamepage_connecting_mistakes">Mistakes</string>
     <string name="gamepage_connecting_done">Done</string>
+    <string name="gamepage_connecting_results_title">Connecting Results</string>
+    <string name="gamepage_connecting_result_correct">Correct</string>
+    <string name="gamepage_connecting_result_incorrect">Incorrect</string>
 
 </resources>

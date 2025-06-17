@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
@@ -60,8 +61,6 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     val mistakePairs: StateFlow<Map<String, Int>> = _mistakePairs.asStateFlow()
 
     // Connecting Game Specific State
-    private var unansweredPairsInCurrentRound: MutableList<TermDefinitionPair> = mutableListOf()
-
     private val _navigateToLobby = MutableStateFlow<Boolean>(false)
     val navigateToLobby: StateFlow<Boolean> = _navigateToLobby.asStateFlow()
 
@@ -137,8 +136,8 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                     if (response.answerCorrect) {
                         val correctTerm = response.termDefinitionPair.term
                         val correctDefinition = response.termDefinitionPair.definition
-                        unansweredPairsInCurrentRound.removeAll { it.term == correctTerm && it.definition == correctDefinition }
-                        refreshDisplayedConnectingPairs()
+                        // unansweredPairsInCurrentRound.removeAll { it.term == correctTerm && it.definition == correctDefinition }
+                        // refreshDisplayedConnectingPairs()
                     } else {
                         updateMistakePairs(response.termDefinitionPair.term)
                     }
@@ -176,6 +175,7 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     }
     
     private fun prepareConnectingGameRound(roundNumber: Int) {
+        if (roundNumber < 1) return // Prevent negative indices and crash
         val game = _gameDetails.value ?: return
         val roundCount = game.roundCount.takeIf { it > 0 } ?: 1 // Avoid division by zero if roundCount is 0
         val totalPairs = game.termDefinitionPairs.size
@@ -187,26 +187,12 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         val endIdx = minOf(roundNumber * roundSize + minOf(roundNumber, extraItems), totalPairs)
         
         if (startIdx >= endIdx) {
-            unansweredPairsInCurrentRound.clear()
-            connectingGameManager.setDisplayedPairs(emptyList(), emptyList(), 0)
+            connectingGameManager.startRound(emptyList())
             return
         }
 
-        val pairsForRound = game.termDefinitionPairs.slice(startIdx until endIdx).toMutableList()
-        unansweredPairsInCurrentRound = ArrayList(pairsForRound) // Initialize with a copy
-        // refreshDisplayedConnectingPairs()
-        connectingGameManager.setConnectedCount(0)
-        connectingGameManager.setMistakesCount(0)
-        connectingGameManager.setSelectedTerm(null)
-        connectingGameManager.setSelectedDefinition(null)
-    }
-
-    private fun refreshDisplayedConnectingPairs() {
-        // Logic to refresh the displayed terms and definitions based on unansweredPairsInCurrentRound
-        val displayedTerms = unansweredPairsInCurrentRound.shuffled().take(MAX_VISIBLE_CONNECTING_PAIRS)
-        val displayedDefinitions = unansweredPairsInCurrentRound.shuffled().take(MAX_VISIBLE_CONNECTING_PAIRS)
-        
-        connectingGameManager.setDisplayedPairs(displayedTerms, displayedDefinitions, displayedTerms.size)
+        val pairsForRound = game.termDefinitionPairs.slice(startIdx until endIdx)
+        connectingGameManager.startRound(pairsForRound)
     }
 
     fun sendGetGameRequest() {
@@ -255,49 +241,33 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         writingGameManager.setUserResponse(response)
     }
 
-    fun selectConnectingTerm(termPair: TermDefinitionPair) {
-        connectingGameManager.setSelectedTerm(termPair)
+    fun selectConnectingTerm(index: Int) {
+        connectingGameManager.setSelectedTermIndex(index)
         checkConnectingMatch()
     }
 
-    fun selectConnectingDefinition(defPair: TermDefinitionPair) {
-        connectingGameManager.setSelectedDefinition(defPair)
+    fun selectConnectingDefinition(index: Int) {
+        connectingGameManager.setSelectedDefinitionIndex(index)
         checkConnectingMatch()
     }
 
     private fun checkConnectingMatch() {
-        val term = connectingGameManager.uiState.value.selectedTerm
-        val definition = connectingGameManager.uiState.value.selectedDefinition
-        if (term != null && definition != null) {
-            // We need to keep track of unansweredPairsInCurrentRound in the ViewModel, since it's not in the manager's UiState
-            val originalPairForTerm = unansweredPairsInCurrentRound.find { it.term == term.term }
-            if (originalPairForTerm != null && originalPairForTerm.definition == definition.definition) {
-                sendConnectingAnswer(originalPairForTerm.term, originalPairForTerm.definition)
-            } else if (originalPairForTerm != null) {
-                sendConnectingAnswer(originalPairForTerm.term, definition.definition)
-            } else {
-                connectingGameManager.setSelectedTerm(null)
-                connectingGameManager.setSelectedDefinition(null)
+        val uiState = connectingGameManager.uiState.value
+        val termIndex = uiState.selectedTermIndex
+        val defIndex = uiState.selectedDefinitionIndex
+        if (termIndex != null && defIndex != null) {
+            val term = uiState.displayedTerms.getOrNull(termIndex)
+            val definition = uiState.displayedDefinitions.getOrNull(defIndex)
+            if (term != null && definition != null) {
+                // Always send the answer to the server
+                sendConnectingAnswer(term.term, definition.definition)
+                viewModelScope.launch {
+                    connectingGameManager.tryConnect(term, definition)
+                }
             }
         }
     }
     
-    private fun sendConnectingAnswer(term: String, definition: String) {
-        val request = JSONObject().apply {
-            put("\$type", "RACE_SUBMIT_ANSWER")
-            put("gameManipulationKey", JSONObject().apply {
-                put("idGame", _idGame)
-                put("idUser", _idUser)
-            })
-            put("answer", JSONObject().apply {
-                put("term", term)
-                put("definition", definition)
-            })
-        }
-        WebSocketManager.sendMessage(request)
-        Log.d("GamePageVM", "Sent RACE_SUBMIT_ANSWER for Connecting: Term='$term', Def='$definition'")
-    }
-
     private fun updateMistakePairs(term: String) {
         val currentMistakes = _mistakePairs.value.toMutableMap()
         currentMistakes[term] = (currentMistakes[term] ?: 0) + 1
@@ -316,5 +286,21 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         super.onCleared()
         // Unregister handlers if WebSocketManager allows it, or handle disconnection
         Log.d("GamePageVM", "ViewModel cleared")
+    }
+
+    private fun sendConnectingAnswer(term: String, definition: String) {
+        val request = JSONObject().apply {
+            put("$" + "type", "RACE_SUBMIT_ANSWER")
+            put("gameManipulationKey", JSONObject().apply {
+                put("idGame", _idGame)
+                put("idUser", _idUser)
+            })
+            put("answer", JSONObject().apply {
+                put("term", term)
+                put("definition", definition)
+            })
+        }
+        WebSocketManager.sendMessage(request)
+        Log.d("GamePageVM", "Sent RACE_SUBMIT_ANSWER for Connecting: Term='$term', Def='$definition'")
     }
 }
