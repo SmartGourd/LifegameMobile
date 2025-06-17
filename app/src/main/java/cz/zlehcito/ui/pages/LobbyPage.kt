@@ -35,6 +35,12 @@ fun LobbyPage(
         it.name.contains(searchQuery, ignoreCase = true) && it.gameType == "Race"
     }
 
+    // Call subscription method when LobbyPage becomes active
+    LaunchedEffect(Unit) {
+        viewModel.sendSubscriptionPutLobbyRequest()
+        viewModel.sendGetGamesRequest()
+    }
+
     Scaffold { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
             Text(

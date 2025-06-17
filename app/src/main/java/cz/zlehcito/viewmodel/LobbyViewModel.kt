@@ -26,18 +26,18 @@ class LobbyViewModel : ViewModel() {
         }
     }
 
-    private fun sendSubscriptionPutLobbyRequest() {
+    fun sendSubscriptionPutLobbyRequest() {
         val joinRequest = JSONObject().apply {
             put("${'$'}type", "SUBSCRIPTION_PUT")
             put("webSocketSubscriptionPut", JSONObject().apply {
-                put("idGame", 0)
+                put("idGameString", "")
                 put("subscriptionType", "Lobby")
             })
         }
         WebSocketManager.sendMessage(joinRequest)
     }
 
-    private fun sendGetGamesRequest() {
+    fun sendGetGamesRequest() {
         val json = JSONObject().apply { put("${'$'}type", "GET_GAMES") }
         WebSocketManager.sendMessage(json)
     }
