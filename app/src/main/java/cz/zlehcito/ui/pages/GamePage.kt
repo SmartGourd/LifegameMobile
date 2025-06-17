@@ -16,14 +16,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.zlehcito.model.RacePlayerResult
@@ -42,14 +40,12 @@ fun GamePage(
     navigateToLobbyPage: () -> Unit,
     viewModel: GamePageViewModel = koinViewModel(parameters = { parametersOf(idGame, idUser) })
 ) {
-    val gameDetails by viewModel.gameDetails.collectAsStateWithLifecycle()
     val inputType by viewModel.inputType.collectAsStateWithLifecycle()
     val showCountdown by viewModel.showCountdown.collectAsStateWithLifecycle()
     val countdownSeconds by viewModel.countdownSeconds.collectAsStateWithLifecycle()
     val displayResults by viewModel.displayResults.collectAsStateWithLifecycle()
     val playerFinalResults by viewModel.playerFinalResults.collectAsStateWithLifecycle()
     val mistakePairs by viewModel.mistakePairs.collectAsStateWithLifecycle()
-    // val currentRound by viewModel.currentRound.collectAsStateWithLifecycle() // For UI if needed
 
     // Navigate to Lobby when triggered by ViewModel
     LaunchedEffect(viewModel.navigateToLobby) {
@@ -165,7 +161,6 @@ fun ResultsScreen(
                 )
             }
         }
-        // TODO: Add comparison results and summary data similar to Vue if needed and data is available
     }
 }
 

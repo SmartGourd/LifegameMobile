@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,7 +31,8 @@ fun LobbyPage(
     viewModel: LobbyViewModel = koinViewModel() // Injected ViewModel
 ) {
     val gamesList by viewModel.gamesList.collectAsStateWithLifecycle()
-    var searchQuery by remember { mutableStateOf("") }
+    val searchQueryState = rememberSaveable { mutableStateOf("") }
+    val searchQuery by searchQueryState
     val filteredGamesList by viewModel.getFilteredGames(searchQuery).collectAsStateWithLifecycle()
 
     // Call subscription method when LobbyPage becomes active
@@ -53,7 +55,7 @@ fun LobbyPage(
 
             SearchBar(
                 searchQuery = searchQuery,
-                onQueryChange = { searchQuery = it }
+                onQueryChange = { searchQueryState.value = it }
             )
 
             if (gamesList.isEmpty()) {

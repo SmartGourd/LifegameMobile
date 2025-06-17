@@ -21,11 +21,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.util.Collections
 
 class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     // Game IDs from navigation
-    private val _idGame: String = savedStateHandle.get<String>("idGame") ?: "" // Changed to String
+    private val _idGame: String = savedStateHandle.get<String>("idGame") ?: ""
     private val _idUser: String = savedStateHandle.get<String>("idUser") ?: ""
 
     private companion object {
@@ -35,7 +34,6 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
 
     // Game Details State (like props.gameDetails in Vue)
     private val _gameDetails = MutableStateFlow<RaceGame?>(null)
-    val gameDetails: StateFlow<RaceGame?> = _gameDetails.asStateFlow()
 
     private val _inputType = MutableStateFlow<String?>(null) // "Writing" or "Connecting"
     val inputType: StateFlow<String?> = _inputType.asStateFlow()
@@ -49,47 +47,20 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
 
     // Game State
     private val _currentRound = MutableStateFlow(0)
-    val currentRound: StateFlow<Int> = _currentRound.asStateFlow()
 
     private val _displayResults = MutableStateFlow(false)
     val displayResults: StateFlow<Boolean> = _displayResults.asStateFlow()
 
-    private val _playerRoundResults = MutableStateFlow<List<RacePlayerResult>>(emptyList()) // For inter-round results
-    val playerRoundResults: StateFlow<List<RacePlayerResult>> = _playerRoundResults.asStateFlow()
+    private val _playerRoundResults = MutableStateFlow<List<RacePlayerResult>>(emptyList())
     
-    private val _playerFinalResults = MutableStateFlow<List<RacePlayerResult>>(emptyList()) // For final game results
+    private val _playerFinalResults = MutableStateFlow<List<RacePlayerResult>>(emptyList())
     val playerFinalResults: StateFlow<List<RacePlayerResult>> = _playerFinalResults.asStateFlow()
 
     private val _mistakePairs = MutableStateFlow<Map<String, Int>>(emptyMap())
     val mistakePairs: StateFlow<Map<String, Int>> = _mistakePairs.asStateFlow()
 
-    // Writing Game Specific State
-    // private val _writing_currentTerm = MutableStateFlow<String?>(null)
-    // val writing_currentTerm: StateFlow<String?> = _writing_currentTerm.asStateFlow()
-    // private val _writing_userResponse = MutableStateFlow("")
-    // val writing_userResponse: StateFlow<String> = _writing_userResponse.asStateFlow()
-    // private val _writing_isWrongAnswer = MutableStateFlow(false)
-    // val writing_isWrongAnswer: StateFlow<Boolean> = _writing_isWrongAnswer.asStateFlow()
-
     // Connecting Game Specific State
     private var unansweredPairsInCurrentRound: MutableList<TermDefinitionPair> = mutableListOf()
-    private val _connecting_termDefinitionQueueThisRound = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
-    val connecting_termDefinitionQueueThisRound: StateFlow<List<TermDefinitionPair>> = _connecting_termDefinitionQueueThisRound.asStateFlow()
-    private val _connecting_displayedTerms = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
-    val connecting_displayedTerms: StateFlow<List<TermDefinitionPair>> = _connecting_displayedTerms.asStateFlow()
-    private val _connecting_displayedDefinitions = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
-    val connecting_displayedDefinitions: StateFlow<List<TermDefinitionPair>> = _connecting_displayedDefinitions.asStateFlow()
-    private val _connecting_selectedTerm = MutableStateFlow<TermDefinitionPair?>(null)
-    val connecting_selectedTerm: StateFlow<TermDefinitionPair?> = _connecting_selectedTerm.asStateFlow()
-    private val _connecting_selectedDefinition = MutableStateFlow<TermDefinitionPair?>(null)
-    val connecting_selectedDefinition: StateFlow<TermDefinitionPair?> = _connecting_selectedDefinition.asStateFlow()
-    private val _connecting_connectedCount = MutableStateFlow(0)
-    val connecting_connectedCount: StateFlow<Int> = _connecting_connectedCount.asStateFlow()
-    private val _connecting_mistakesCount = MutableStateFlow(0) // Mistakes within the connecting component
-    val connecting_mistakesCount: StateFlow<Int> = _connecting_mistakesCount.asStateFlow()
-    private val _connecting_feedback = MutableStateFlow<String?>(null) // "correct" or "incorrect"
-    val connecting_feedback: StateFlow<String?> = _connecting_feedback.asStateFlow()
-
 
     private val _navigateToLobby = MutableStateFlow<Boolean>(false)
     val navigateToLobby: StateFlow<Boolean> = _navigateToLobby.asStateFlow()
@@ -109,7 +80,6 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                 val response = Gson().fromJson(json.toString(), GetRaceGameResponse::class.java)
                 _gameDetails.value = response.game
                 _inputType.value = response.game.inputType
-                // fullTermDefinitionQueue = response.game.termDefinitionPairs ?: emptyList()
                 
                 // If game is already over (e.g., page refresh)
                 if (response.game.currentRound == -1) {
@@ -171,11 +141,6 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                         // _connecting_mistakesCount.value += 1
                         updateMistakePairs(response.termDefinitionPair.term)
                     }
-                    // _connecting_selectedTerm.value = null
-                    // _connecting_selectedDefinition.value = null
-                    // if (_connecting_displayedTerms.value.isEmpty() && !response.endOfRound) {
-                    //     Log.d("GamePageVM", "Connecting: All pairs for this segment seem connected by client.")
-                    // }
                 }
             }
         }
@@ -212,7 +177,7 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     private fun prepareConnectingGameRound(roundNumber: Int) {
         val game = _gameDetails.value ?: return
         val roundCount = game.roundCount.takeIf { it > 0 } ?: 1 // Avoid division by zero if roundCount is 0
-        val totalPairs = game.termDefinitionPairs?.size ?: 0
+        val totalPairs = game.termDefinitionPairs.size
 
         val roundSize = totalPairs / roundCount
         val extraItems = totalPairs % roundCount
@@ -226,7 +191,7 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
             return
         }
 
-        val pairsForRound = game.termDefinitionPairs!!.slice(startIdx until endIdx).toMutableList()
+        val pairsForRound = game.termDefinitionPairs.slice(startIdx until endIdx).toMutableList()
         unansweredPairsInCurrentRound = ArrayList(pairsForRound) // Initialize with a copy
         // refreshDisplayedConnectingPairs()
         connectingGameManager.setConnectedCount(0)
