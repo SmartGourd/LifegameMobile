@@ -4,7 +4,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
-import cz.zlehcito.model.entities.*
+import cz.zlehcito.model.EndGameResponse
+import cz.zlehcito.model.GetLobbyGameResponse
+import cz.zlehcito.model.LobbyGameDetail
+import cz.zlehcito.model.NewTermResponse
+import cz.zlehcito.model.RacePlayerResult
+import cz.zlehcito.model.StartRaceRoundResponse
+import cz.zlehcito.model.SubmitAnswerResponse
+import cz.zlehcito.model.TermDefinitionPair
 import cz.zlehcito.network.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import kotlin.math.min
 
 class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     private val _idGame: Int = savedStateHandle.get<Int>("gameId") ?: 0
@@ -30,8 +36,8 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
 
     private var currentRoundNumber: Int = 1 // Renamed to avoid conflict with StateFlow
 
-    private val _gameSetupState = MutableStateFlow<GameSetupState?>(null)
-    val gameSetupState: StateFlow<GameSetupState?> = _gameSetupState.asStateFlow()
+    private val _gameSetupState = MutableStateFlow<LobbyGameDetail?>(null)
+    val gameSetupState: StateFlow<LobbyGameDetail?> = _gameSetupState.asStateFlow()
 
     private val _playerFinalResults = MutableStateFlow<List<RacePlayerResult>>(emptyList())
     val playerFinalResults: StateFlow<List<RacePlayerResult>> = _playerFinalResults.asStateFlow()
@@ -158,8 +164,10 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     }
 
     private fun setupTermDefinitionQueueForThisRound(currentRound: Int) {
+        /*
         if (currentRound <= 0) return
         val gameSetup = _gameSetupState.value ?: return
+
         val totalRounds = gameSetup.roundCount
         val termsAndDefinitions = gameSetup.termDefinitionPairs
 
@@ -178,15 +186,20 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         val newList = termsAndDefinitions.subList(startIdx, endIdx).toMutableList()
         newList.shuffle()
         _termDefinitionPairsQueueThisRound.value = newList
+
+         */
     }
 
     private fun addMistake(term: String, definitionProvided: String) {
+        /*
         // Find the correct definition for the term from the game setup state if available
         val correctDefinition = _gameSetupState.value?.termDefinitionPairs?.find { it.term == term }?.definition ?: "[Correct definition not found]"
         val key = "Term: '$term' - Your answer: '$definitionProvided' (Correct: '$correctDefinition')"
         _mistakeDictionary.value = _mistakeDictionary.value.toMutableMap().apply {
             put(key, getOrDefault(key, 0) + 1)
         }
+
+         */
     }
 
     fun checkDefinitionCorrectness() {
@@ -255,9 +268,9 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     }
 
     //region Parsers
-    private fun parseGameSetupStateJson(response: String): GameSetupState? {
+    private fun parseGameSetupStateJson(response: String): LobbyGameDetail? {
         return try {
-            Gson().fromJson(response, GameSetupResponse::class.java)?.game
+            Gson().fromJson(response, GetLobbyGameResponse::class.java)?.game
         } catch (e: Exception) {
             // Log.e("GamePageVM", "Error parsing GameSetupState: $e")
             _gameSetupState.value // Keep existing on error

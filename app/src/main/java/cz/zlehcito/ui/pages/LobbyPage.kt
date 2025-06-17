@@ -1,5 +1,6 @@
 package cz.zlehcito.ui.pages
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,18 +20,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.zlehcito.R
-import cz.zlehcito.model.entities.Game
+import cz.zlehcito.model.LobbyGameForList
 import cz.zlehcito.viewmodel.LobbyViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun LobbyPage(
-    navigateToGameSetupPage: (gameId: Int) -> Unit,
+    navigateToGameSetupPage: (idString: String) -> Unit,
     viewModel: LobbyViewModel = koinViewModel() // Injected ViewModel
 ) {
     val gamesList by viewModel.gamesList.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
-    val filteredGamesList = gamesList.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    val filteredGamesList = gamesList.filter {
+        it.name.contains(searchQuery, ignoreCase = true) && it.gameType == "Race"
+    }
 
     Scaffold { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
@@ -73,7 +76,7 @@ fun LobbyPage(
                                 .fillMaxWidth()
                                 .padding(bottom = 8.dp)
                                 .clickable {
-                                    navigateToGameSetupPage(game.idGame) // New: Call lambda passed from AppNavigator
+                                    navigateToGameSetupPage(game.idString)
                                 },
                             backgroundColor = if (index % 2 == 0)
                                 colorResource(id = R.color.lighter_blue)
@@ -112,7 +115,7 @@ fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
 
 
 @Composable
-fun GameItem(game: Game, modifier: Modifier = Modifier, backgroundColor: Color) {
+fun GameItem(game: LobbyGameForList, modifier: Modifier = Modifier, backgroundColor: Color) {
     Row(
         modifier = modifier
             .background(backgroundColor, RoundedCornerShape(6.dp))

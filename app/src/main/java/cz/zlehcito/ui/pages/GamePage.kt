@@ -23,8 +23,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cz.zlehcito.model.entities.RacePlayerResult
-import cz.zlehcito.model.entities.TermDefinitionPair
+import cz.zlehcito.model.RacePlayerResult
+import cz.zlehcito.model.TermDefinitionPair
 import cz.zlehcito.viewmodel.GamePageViewModel // Added ViewModel import
 
 import cz.zlehcito.R
@@ -34,7 +34,7 @@ import org.koin.core.parameter.parametersOf
 
 @Composable
 fun GamePage(
-    idGame: Int, // Renamed from idGame for consistency with ViewModel
+    idGame: String, // Renamed from idGame for consistency with ViewModel
     idUser: String, // Renamed from idUser for consistency with ViewModel
     navigateToLobbyPage: () -> Unit,
     viewModel: GamePageViewModel = koinViewModel(parameters = { parametersOf(idGame, idUser) }) // Inject ViewModel
@@ -49,7 +49,6 @@ fun GamePage(
         }
     }
 
-    val gameSetupState by viewModel.gameSetupState.collectAsStateWithLifecycle()
     val showResults by viewModel.showResults.collectAsStateWithLifecycle()
     val playerFinalResults by viewModel.playerFinalResults.collectAsStateWithLifecycle()
     val mistakeDictionary by viewModel.mistakeDictionary.collectAsStateWithLifecycle()
@@ -77,7 +76,7 @@ fun GamePage(
             secondsOfCountdown > 0 -> {
                 CountdownScreen(secondsOfCountdown = secondsOfCountdown)
             }
-
+            /*
             gameSetupState?.inputType == "Writing" -> {
                 WritingScreen(
                     currentTerm = currentTerm,
@@ -87,6 +86,7 @@ fun GamePage(
                     backgroundColor = backgroundColor
                 )
             }
+            */
 
             else -> { // Assuming "Connecting" type if not "Writing" and not countdown/results
                 ConnectingScreen(

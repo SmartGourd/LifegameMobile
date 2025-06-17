@@ -18,7 +18,7 @@
     <string name="gamesetup_title">Game Setup</string>
     <string name="gamesetup_name">Name: %1$s</string>
     <string name="gamesetup_status">Status: %1$s</string>
-    <string name="gamesetup_players">Players: %1$d / %2$d</string>
+    <string name="gamesetup_players">Players: %1$d</string>
     <string name="gamesetup_total_rounds">Total Rounds: %1$d</string>
     <string name="gamesetup_input_type">Input Type: %1$s</string>
     <string name="gamesetup_players_in_lobby">Players in Lobby:</string>

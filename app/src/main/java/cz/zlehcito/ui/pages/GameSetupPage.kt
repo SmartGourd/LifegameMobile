@@ -15,9 +15,9 @@ import org.koin.core.parameter.parametersOf
 
 @Composable
 fun GameSetupPage(
-    idGame: Int, // Received from Navigation
+    idGame: String, // Received from Navigation
     navigateToLobbyPage: () -> Unit,
-    navigateToGamePage: (gameId: Int, userId: String) -> Unit, // For navigation triggered by ViewModel event
+    navigateToGamePage: (idGame: String, userId: String) -> Unit, // For navigation triggered by ViewModel event
     viewModel: GameSetupViewModel = koinViewModel(parameters = { parametersOf(idGame) }) // Pass idGame via parameters for SavedStateHandle
 ) {
     val gameSetupState by viewModel.gameSetupState.collectAsStateWithLifecycle()
@@ -27,8 +27,8 @@ fun GameSetupPage(
     // Observe navigation event from ViewModel
     val navigateToGameEvent by viewModel.navigateToGameAction.collectAsStateWithLifecycle()
     LaunchedEffect(navigateToGameEvent) {
-        navigateToGameEvent?.data?.let { (gameId, userId) ->
-            navigateToGamePage(gameId, userId)
+        navigateToGameEvent?.data?.let { (idGame, userId) ->
+            navigateToGamePage(idGame, userId)
             viewModel.consumeNavigationEvent() // Reset the event after navigation
         }
     }
@@ -48,10 +48,7 @@ fun GameSetupPage(
 
             gameSetupState?.let { setup ->
                 Text(stringResource(R.string.gamesetup_name, setup.name))
-                Text(stringResource(R.string.gamesetup_status, setup.gameStatus))
-                Text(stringResource(R.string.gamesetup_players, setup.players.count(), setup.maxPlayers))
-                Text(stringResource(R.string.gamesetup_total_rounds, setup.roundCount))
-                Text(stringResource(R.string.gamesetup_input_type, setup.inputType))
+                Text(stringResource(R.string.gamesetup_players, setup.players.count()))
 
                 Spacer(modifier = Modifier.height(16.dp))
 

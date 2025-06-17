@@ -21,24 +21,24 @@ fun AppNavigator(navController: NavHostController) {
     NavHost(navController = navController, startDestination = AppDestinations.LOBBY) {
         composable(AppDestinations.LOBBY) {
             LobbyPage(
-                navigateToGameSetupPage = { gameId ->
-                    navController.navigate("${AppDestinations.GAME_SETUP}/$gameId")
+                navigateToGameSetupPage = { idGame -> // Changed gameId to idGame for consistency
+                    navController.navigate("${AppDestinations.GAME_SETUP}/$idGame")
                 }
             )
         }
         composable(
-            route = "${AppDestinations.GAME_SETUP}/{gameId}",
-            arguments = listOf(navArgument("gameId") { type = NavType.IntType })
+            route = "${AppDestinations.GAME_SETUP}/{idGame}", // Changed gameId to idGame
+            arguments = listOf(navArgument("idGame") { type = NavType.StringType }) // Changed gameId to idGame and type to StringType
         ) { backStackEntry ->
-            val gameId = backStackEntry.arguments?.getInt("gameId") ?: 0
+            val idGame = backStackEntry.arguments?.getString("idGame") ?: "" // Changed gameId to idGame and getInt to getString
             GameSetupPage(
-                idGame = gameId,
+                idGame = idGame,
                 navigateToLobbyPage = {
                     navController.popBackStack(AppDestinations.LOBBY, inclusive = false)
                 },
-                navigateToGamePage = { idGame, idUser ->
+                navigateToGamePage = { gameId, userId -> // Parameters from GameSetupPage are idGame, idUser
                     // GameSetupModel.initializeModel is called within GameSetupPage now or will be handled there
-                    navController.navigate("${AppDestinations.GAME}/$idGame/$idUser") {
+                    navController.navigate("${AppDestinations.GAME}/$gameId/$userId") { // gameId here is the string idGame from GameSetupPage
                         // Pop up to lobby to prevent going back to game setup from game
                         popUpTo(AppDestinations.LOBBY)
                     }
@@ -46,17 +46,17 @@ fun AppNavigator(navController: NavHostController) {
             )
         }
         composable(
-            route = "${AppDestinations.GAME}/{gameId}/{userId}",
+            route = "${AppDestinations.GAME}/{idGame}/{idUser}", // Changed gameId to idGame and userId to idUser
             arguments = listOf(
-                navArgument("gameId") { type = NavType.IntType },
-                navArgument("userId") { type = NavType.StringType }
+                navArgument("idGame") { type = NavType.StringType }, // Changed gameId to idGame and type to StringType
+                navArgument("idUser") { type = NavType.StringType } // Changed userId to idUser
             )
         ) { backStackEntry ->
-            val gameId = backStackEntry.arguments?.getInt("gameId") ?: 0
-            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val idGame = backStackEntry.arguments?.getString("idGame") ?: "" // Changed gameId to idGame and getInt to getString
+            val idUser = backStackEntry.arguments?.getString("idUser") ?: "" // Changed userId to idUser
             GamePage(
-                idGame = gameId,
-                idUser = userId,
+                idGame = idGame,
+                idUser = idUser,
                 navigateToLobbyPage = {
                     navController.popBackStack(AppDestinations.LOBBY, inclusive = false)
                 }

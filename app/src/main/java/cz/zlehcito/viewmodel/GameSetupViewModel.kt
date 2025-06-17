@@ -3,10 +3,10 @@ package cz.zlehcito.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import com.google.gson.Gson
-import cz.zlehcito.model.entities.GameKey
-import cz.zlehcito.model.entities.GameSetupResponse
-import cz.zlehcito.model.entities.GameSetupState
-import cz.zlehcito.model.entities.JoinGameResponse
+import cz.zlehcito.model.GameKey
+import cz.zlehcito.model.GetLobbyGameResponse
+import cz.zlehcito.model.LobbyGameDetail
+import cz.zlehcito.model.JoinGameResponse
 import cz.zlehcito.network.WebSocketManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,10 +17,10 @@ import org.json.JSONObject
 data class NavigationEvent<T>(val data: T)
 
 class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
-    private val _idGame: Int = savedStateHandle.get<Int>("gameId") ?: 0
+    private val _idGame: String = savedStateHandle.get<String>("idGame") ?: ""
 
-    private val _gameSetupState = MutableStateFlow<GameSetupState?>(null)
-    val gameSetupState: StateFlow<GameSetupState?> = _gameSetupState.asStateFlow()
+    private val _gameSetupState = MutableStateFlow<LobbyGameDetail?>(null)
+    val gameSetupState: StateFlow<LobbyGameDetail?> = _gameSetupState.asStateFlow()
 
     private val _defaultKeyValue = GameKey(_idGame, "", "Invalid")
     private val _gameKey = MutableStateFlow(_defaultKeyValue)
@@ -29,8 +29,8 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
     private val _idUser = MutableStateFlow("") // This will be updated upon joining
 
     // For navigation to game page
-    private val _navigateToGameAction = MutableStateFlow<NavigationEvent<Pair<Int, String>>?>(null)
-    val navigateToGameAction: StateFlow<NavigationEvent<Pair<Int, String>>?> = _navigateToGameAction.asStateFlow()
+    private val _navigateToGameAction = MutableStateFlow<NavigationEvent<Pair<String, String>>?>(null)
+    val navigateToGameAction: StateFlow<NavigationEvent<Pair<String, String>>?> = _navigateToGameAction.asStateFlow()
 
     init {
         WebSocketManager.registerHandler("GET_GAME") { json ->
@@ -66,8 +66,8 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
         val sendSubscriptionPutRequest = JSONObject().apply {
             put("${'$'}type", "SUBSCRIPTION_PUT")
             put("webSocketSubscriptionPut", JSONObject().apply {
-                put("idGame", _idGame)
-                put("subscriptionType", "GameSetup")
+                put("idGameString", _idGame)
+                put("subscriptionType", "Game")
             })
         }
         WebSocketManager.sendMessage(sendSubscriptionPutRequest)
@@ -109,10 +109,10 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
         _navigateToGameAction.value = null
     }
 
-    private fun parseGameSetupStateJson(response: String): GameSetupState? {
+    private fun parseGameSetupStateJson(response: String): LobbyGameDetail? {
         return try {
             val gson = Gson()
-            val gameResponse = gson.fromJson(response, GameSetupResponse::class.java)
+            val gameResponse = gson.fromJson(response, GetLobbyGameResponse::class.java)
             gameResponse.game
         } catch (e: Exception) {
             // Log error

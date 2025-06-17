@@ -1,4 +1,4 @@
-package cz.zlehcito.model.entities
+package cz.zlehcito.model
 
 data class RaceRoundPlayerState (
     val playerName: String,
@@ -11,6 +11,8 @@ data class RacePlayerResult (
     val inGameName: String,
     val points: Int,
 )
+
+data class TermDefinitionPair(val term: String, var definition: String)
 
 data class RaceGameInterRoundState (
     val currentRound: Number,
