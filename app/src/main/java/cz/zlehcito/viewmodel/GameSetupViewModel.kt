@@ -16,25 +16,31 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-// Event wrapper for navigation
+// NavigationEvent is a wrapper for navigation actions, allowing data to be passed with navigation events.
 data class NavigationEvent<T>(val data: T)
 
+// GameSetupViewModel manages the state and logic for the game setup screen.
+// It handles joining/leaving games, fetching game details, and navigation events.
 class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     private val _idGame: String = savedStateHandle.get<String>("idGame") ?: ""
 
+    // Holds the current game setup state (null if not loaded)
     private val _gameSetupState = MutableStateFlow<LobbyGameDetail?>(null)
     val gameSetupState: StateFlow<LobbyGameDetail?> = _gameSetupState.asStateFlow()
 
+    // Holds the current game key (used for joining/leaving)
     private val _defaultKeyValue = GameKey(_idGame, "", "Invalid")
     private val _gameKey = MutableStateFlow(_defaultKeyValue)
     val gameKey: StateFlow<GameKey> = _gameKey.asStateFlow()
 
-    private val _idUser = MutableStateFlow("") // This will be updated upon joining
+    // Holds the user ID (updated upon joining)
+    private val _idUser = MutableStateFlow("")
 
-    // For navigation to game page
+    // Navigation event for moving to the game page
     private val _navigateToGameAction = MutableStateFlow<NavigationEvent<Pair<String, String>>?>(null)
     val navigateToGameAction: StateFlow<NavigationEvent<Pair<String, String>>?> = _navigateToGameAction.asStateFlow()
 
+    // Registers WebSocket event handlers for game setup events
     init {
         WebSocketManager.registerHandler("GET_GAME") { json ->
             viewModelScope.launch(Dispatchers.Default) {
@@ -65,28 +71,31 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
         }
     }
 
-    fun sendSubscriptionPutGameSetupRequest() { // Changed to public
+    // Sends a subscription request to receive game setup updates
+    fun sendSubscriptionPutGameSetupRequest() {
         val sendSubscriptionPutRequest = JSONObject().apply {
-            put("${'$'}type", "SUBSCRIPTION_PUT")
+            put("$" + "type", "SUBSCRIPTION_PUT")
             put("webSocketSubscriptionPut", JSONObject().apply {
-                put("idGameString", _idGame) // Changed idGameString to idGame to match server/model expectations
+                put("idGameString", _idGame)
                 put("subscriptionType", "Game")
             })
         }
         WebSocketManager.sendMessage(sendSubscriptionPutRequest)
     }
 
+    // Requests the current game setup state from the server
     fun sendGetGameRequest() {
         val getGameRequest = JSONObject().apply {
-            put("${'$'}type", "GET_GAME")
+            put("$" + "type", "GET_GAME")
             put("idGame", _idGame)
         }
         WebSocketManager.sendMessage(getGameRequest)
     }
 
+    // Sends a request to join the game with the given player name
     fun sendJoinGameRequest(playerName: String) {
         val joinRequest = JSONObject().apply {
-            put("${'$'}type", "JOIN_GAME")
+            put("$" + "type", "JOIN_GAME")
             put("gameJoinDto", JSONObject().apply {
                 put("idGame", _idGame)
                 put("PlayerName", playerName)
@@ -95,10 +104,11 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
         WebSocketManager.sendMessage(joinRequest)
     }
 
-    fun sendLeaveGameRequest() { // idUser is now internal to ViewModel via _gameKey
+    // Sends a request to leave the game (if user is joined)
+    fun sendLeaveGameRequest() {
         if (_gameKey.value.idUser.isNotEmpty() && _gameKey.value.keyType != "Invalid") {
             val leaveRequest = JSONObject().apply {
-                put("${'$'}type", "LEAVE_GAME")
+                put("$" + "type", "LEAVE_GAME")
                 put("gameManipulationKey", JSONObject().apply {
                     put("IdGame", _idGame)
                     put("IdUser", _gameKey.value.idUser)
@@ -107,11 +117,13 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
             WebSocketManager.sendMessage(leaveRequest)
         }
     }
-    
+
+    // Consumes the navigation event after it has been handled
     fun consumeNavigationEvent() {
         _navigateToGameAction.value = null
     }
 
+    // Parses the game setup state from a JSON response
     private fun parseGameSetupStateJson(response: String): LobbyGameDetail? {
         return try {
             val gson = Gson()
@@ -123,6 +135,7 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
         }
     }
 
+    // Parses the join game response and returns the GameKey
     private fun parseJoinGameJson(response: String): GameKey {
         return try {
             val gson = Gson()

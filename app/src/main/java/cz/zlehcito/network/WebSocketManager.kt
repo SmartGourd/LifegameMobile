@@ -13,15 +13,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-import java.security.cert.X509Certificate
-import javax.net.ssl.*
+//import java.security.cert.X509Certificate
+//import javax.net.ssl.*
 
 object WebSocketManager {
-    //private const val URL = "wss://zlehcito.cz/ws"
-    //private val client = OkHttpClient()
+    private const val URL = "wss://zlehcito.cz/ws"
+    private val client = OkHttpClient()
 
-    private const val URL = "wss://10.0.2.2:7249/ws"
-    private val client = getUnsafeOkHttpClient()
+    //private const val URL = "wss://10.0.2.2:7249/ws"
+    //private val client = getUnsafeOkHttpClient()
 
     private var webSocket: WebSocket? = null
 
@@ -31,7 +31,7 @@ object WebSocketManager {
     fun isConnected(): Boolean = _isConnected.value
 
     private val messageHandlers: MutableMap<String, (JSONObject) -> Unit> = mutableMapOf()
-    // Used for development with connection to localhost websocket server
+    /* Used for development with connection to localhost websocket server
     fun getUnsafeOkHttpClient(): OkHttpClient {
         try {
             // Create a trust manager that does not validate certificate chains
@@ -55,6 +55,7 @@ object WebSocketManager {
             throw RuntimeException(e)
         }
     }
+    */
 
 
     fun connect() {

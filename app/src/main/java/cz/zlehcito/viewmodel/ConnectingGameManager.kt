@@ -6,27 +6,30 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-// Holds all state and logic for the Connecting game mode
+// ConnectingGameManager manages the state and logic for the 'Connecting' game mode.
+// It handles the current round, visible pairs, user selections, and feedback.
 class ConnectingGameManager(private val maxVisiblePairs: Int = 5) {
+    // UiState holds all UI-related state for the Connecting game round.
     data class UiState(
-        val displayedTerms: List<TermDefinitionPair> = emptyList(),
-        val displayedDefinitions: List<TermDefinitionPair> = emptyList(),
-        val selectedTermIndex: Int? = null,
-        val selectedDefinitionIndex: Int? = null,
-        val connectedCount: Int = 0,
-        val mistakesCount: Int = 0,
-        val feedback: String? = null,
-        val totalPairsInRound: Int = 0,
-        val roundFinished: Boolean = false,
-        val results: List<Pair<TermDefinitionPair, Boolean>> = emptyList() // Pair and correctness
+        val displayedTerms: List<TermDefinitionPair> = emptyList(), // Terms currently shown to the user
+        val displayedDefinitions: List<TermDefinitionPair> = emptyList(), // Definitions currently shown
+        val selectedTermIndex: Int? = null, // Index of selected term
+        val selectedDefinitionIndex: Int? = null, // Index of selected definition
+        val connectedCount: Int = 0, // Number of correct connections
+        val mistakesCount: Int = 0, // Number of mistakes made
+        val feedback: String? = null, // Feedback for the last action
+        val totalPairsInRound: Int = 0, // Total pairs in this round
+        val roundFinished: Boolean = false, // Whether the round is finished
+        val results: List<Pair<TermDefinitionPair, Boolean>> = emptyList() // List of pairs and correctness
     )
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState
 
-    private var pairQueue: MutableList<TermDefinitionPair> = mutableListOf()
-    private val roundResults: MutableList<Pair<TermDefinitionPair, Boolean>> = mutableListOf()
+    private var pairQueue: MutableList<TermDefinitionPair> = mutableListOf() // Queue of pairs to be matched
+    private val roundResults: MutableList<Pair<TermDefinitionPair, Boolean>> = mutableListOf() // Results for the round
 
+    // Starts a new round with the given pairs
     fun startRound(pairs: List<TermDefinitionPair>) {
         pairQueue = pairs.toMutableList()
         roundResults.clear()
@@ -43,6 +46,7 @@ class ConnectingGameManager(private val maxVisiblePairs: Int = 5) {
         )
     }
 
+    // Updates the visible terms and definitions for the UI
     private fun updateDisplayedPairs() {
         val visible = pairQueue.take(maxVisiblePairs)
         _uiState.value = _uiState.value.copy(
@@ -51,6 +55,7 @@ class ConnectingGameManager(private val maxVisiblePairs: Int = 5) {
         )
     }
 
+    // Tries to connect a term and definition, updates state and feedback
     suspend fun tryConnect(term: TermDefinitionPair, definition: TermDefinitionPair) {
         withContext(Dispatchers.Default) {
             if (term.term == definition.term && term.definition == definition.definition) {
@@ -91,18 +96,22 @@ class ConnectingGameManager(private val maxVisiblePairs: Int = 5) {
         }
     }
 
+    // Sets the selected term index in the UI state
     fun setSelectedTermIndex(index: Int?) {
         _uiState.value = _uiState.value.copy(selectedTermIndex = index)
     }
 
+    // Sets the selected definition index in the UI state
     fun setSelectedDefinitionIndex(index: Int?) {
         _uiState.value = _uiState.value.copy(selectedDefinitionIndex = index)
     }
 
+    // Sets feedback message in the UI state
     fun setFeedback(feedback: String?) {
         _uiState.value = _uiState.value.copy(feedback = feedback)
     }
 
+    // Resets the manager to its initial state
     fun reset() {
         pairQueue.clear()
         roundResults.clear()

@@ -16,11 +16,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
+// LobbyViewModel manages the state and logic for the lobby screen.
+// It handles fetching the list of available games, filtering, and WebSocket events.
 class LobbyViewModel : ViewModel() {
-
+    // Holds the list of games in the lobby
     private val _gamesList = MutableStateFlow<List<LobbyGameForList>>(emptyList())
     val gamesList: StateFlow<List<LobbyGameForList>> get() = _gamesList
 
+    // Registers WebSocket event handler for receiving the games list
     init {
         WebSocketManager.registerHandler("GET_GAMES") { json ->
             viewModelScope.launch(Dispatchers.Default) {
@@ -30,9 +33,10 @@ class LobbyViewModel : ViewModel() {
         }
     }
 
+    // Sends a subscription request to receive lobby updates
     fun sendSubscriptionPutLobbyRequest() {
         val joinRequest = JSONObject().apply {
-            put("${'$'}type", "SUBSCRIPTION_PUT")
+            put("$" + "type", "SUBSCRIPTION_PUT")
             put("webSocketSubscriptionPut", JSONObject().apply {
                 put("idGameString", "")
                 put("subscriptionType", "Lobby")
@@ -41,11 +45,13 @@ class LobbyViewModel : ViewModel() {
         WebSocketManager.sendMessage(joinRequest)
     }
 
+    // Requests the list of games from the server
     fun sendGetGamesRequest() {
-        val json = JSONObject().apply { put("${'$'}type", "GET_GAMES") }
+        val json = JSONObject().apply { put("$" + "type", "GET_GAMES") }
         WebSocketManager.sendMessage(json)
     }
 
+    // Parses the games list from a JSON response
     private fun parseGamesListJson(response: String): List<LobbyGameForList> {
         return try {
             val gson = Gson()
@@ -57,6 +63,7 @@ class LobbyViewModel : ViewModel() {
         }
     }
 
+    // Returns a filtered list of games based on the query and game type
     fun getFilteredGames(query: String): StateFlow<List<LobbyGameForList>> {
         return gamesList
             .map { list ->
