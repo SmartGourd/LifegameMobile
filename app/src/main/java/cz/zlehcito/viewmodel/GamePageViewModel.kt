@@ -29,6 +29,7 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
 
     private companion object {
         private const val COUNTDOWN_INITIAL_SECONDS = 3
+        private const val MAX_VISIBLE_CONNECTING_PAIRS = 5 // Added constant
     }
 
     // Game Details State (like props.gameDetails in Vue)
@@ -75,6 +76,9 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     private var fullTermDefinitionQueue: List<TermDefinitionPair> = emptyList() // Full list for the game
     private val _connecting_termDefinitionQueueThisRound = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
     val connecting_termDefinitionQueueThisRound: StateFlow<List<TermDefinitionPair>> = _connecting_termDefinitionQueueThisRound.asStateFlow()
+
+    // Stores all pairs for the current round that are not yet correctly answered.
+    private var unansweredPairsInCurrentRound: MutableList<TermDefinitionPair> = mutableListOf()
 
     private val _connecting_displayedTerms = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
     val connecting_displayedTerms: StateFlow<List<TermDefinitionPair>> = _connecting_displayedTerms.asStateFlow()
@@ -180,10 +184,15 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                 }
                 if (response.answerCorrect) {
                     _connecting_connectedCount.value += 1
-                    // Remove from displayed lists
-                    val termToRemove = response.termDefinitionPair.term
-                    _connecting_displayedTerms.value = _connecting_displayedTerms.value.filterNot { it.term == termToRemove }
-                    _connecting_displayedDefinitions.value = _connecting_displayedDefinitions.value.filterNot { it.term == termToRemove }
+                    
+                    val correctTerm = response.termDefinitionPair.term
+                    val correctDefinition = response.termDefinitionPair.definition
+
+                    // Remove from the source list for the current round
+                    unansweredPairsInCurrentRound.removeAll { it.term == correctTerm && it.definition == correctDefinition }
+
+                    // Refresh the displayed items (will pick new ones if available, or show fewer)
+                    refreshDisplayedConnectingPairs()
 
                 } else {
                     _connecting_mistakesCount.value += 1
@@ -245,8 +254,8 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         
         if (startIdx >= endIdx) {
             _connecting_termDefinitionQueueThisRound.value = emptyList()
-            _connecting_displayedTerms.value = emptyList()
-            _connecting_displayedDefinitions.value = emptyList()
+            unansweredPairsInCurrentRound.clear()
+            refreshDisplayedConnectingPairs() // Will set displayed lists to empty
             Log.w("GamePageVM", "Connecting: No pairs for round $roundNumber. Start: $startIdx, End: $endIdx, Total: $totalPairs")
             return
         }
@@ -254,20 +263,33 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         val pairsForRound = fullTermDefinitionQueue.slice(startIdx until endIdx).toMutableList()
         
         _connecting_termDefinitionQueueThisRound.value = pairsForRound
-        
-        val terms = pairsForRound.map { TermDefinitionPair(it.term, "") }.toMutableList() // Keep original index via object identity for matching
-        Collections.shuffle(terms)
-        _connecting_displayedTerms.value = terms
+        unansweredPairsInCurrentRound = ArrayList(pairsForRound) // Initialize with a copy
 
-        val definitions = pairsForRound.map { TermDefinitionPair("", it.definition) }.toMutableList()
-        Collections.shuffle(definitions)
-        _connecting_displayedDefinitions.value = definitions
+        refreshDisplayedConnectingPairs() // Setup initial display
         
         _connecting_connectedCount.value = 0
         _connecting_mistakesCount.value = 0
         _connecting_selectedTerm.value = null
         _connecting_selectedDefinition.value = null
         Log.d("GamePageVM", "Connecting: Prepared round $roundNumber with ${pairsForRound.size} pairs.")
+    }
+
+    private fun refreshDisplayedConnectingPairs() {
+        // Take up to MAX_VISIBLE_CONNECTING_PAIRS unanswered pairs
+        val visiblePairsSource = unansweredPairsInCurrentRound.take(MAX_VISIBLE_CONNECTING_PAIRS).toMutableList()
+
+        // Create terms list for display (shuffled)
+        // These TermDefinitionPair objects are temporary for display; their 'term' or 'definition' is key.
+        val termsForDisplay = visiblePairsSource.map { TermDefinitionPair(term = it.term, definition = "") }.toMutableList()
+        Collections.shuffle(termsForDisplay)
+        _connecting_displayedTerms.value = termsForDisplay
+
+        // Create definitions list for display (shuffled) from the same source pairs
+        val definitionsForDisplay = visiblePairsSource.map { TermDefinitionPair(term = "", definition = it.definition) }.toMutableList()
+        Collections.shuffle(definitionsForDisplay)
+        _connecting_displayedDefinitions.value = definitionsForDisplay
+
+        Log.d("GamePageVM", "Refreshed displayed pairs. Terms: ${termsForDisplay.size}, Defs: ${definitionsForDisplay.size}. Unanswered left: ${unansweredPairsInCurrentRound.size}")
     }
 
 
