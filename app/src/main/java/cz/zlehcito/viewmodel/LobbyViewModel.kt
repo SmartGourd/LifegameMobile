@@ -2,12 +2,15 @@ package cz.zlehcito.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import cz.zlehcito.model.LobbyGameForList
 import cz.zlehcito.model.GetLobbyGamesResponse
 import cz.zlehcito.network.WebSocketManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class LobbyViewModel : ViewModel() {
@@ -17,7 +20,10 @@ class LobbyViewModel : ViewModel() {
 
     init {
         WebSocketManager.registerHandler("GET_GAMES") { json ->
-            _gamesList.value = parseGamesListJson(json.toString())
+            viewModelScope.launch(Dispatchers.Default) {
+                val games = parseGamesListJson(json.toString())
+                _gamesList.value = games
+            }
         }
     }
 

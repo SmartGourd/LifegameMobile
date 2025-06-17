@@ -2,15 +2,18 @@ package cz.zlehcito.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import cz.zlehcito.model.GameKey
 import cz.zlehcito.model.GetLobbyGameResponse
 import cz.zlehcito.model.LobbyGameDetail
 import cz.zlehcito.model.JoinGameResponse
 import cz.zlehcito.network.WebSocketManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 // Event wrapper for navigation
@@ -34,13 +37,18 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
 
     init {
         WebSocketManager.registerHandler("GET_GAME") { json ->
-            _gameSetupState.value = parseGameSetupStateJson(json.toString())
+            viewModelScope.launch(Dispatchers.Default) {
+                val game = parseGameSetupStateJson(json.toString())
+                _gameSetupState.value = game
+            }
         }
 
         WebSocketManager.registerHandler("JOIN_GAME") { json ->
-            val joinedGameKey = parseJoinGameJson(json.toString())
-            _gameKey.value = joinedGameKey
-            _idUser.value = joinedGameKey.idUser
+            viewModelScope.launch(Dispatchers.Default) {
+                val joinedGameKey = parseJoinGameJson(json.toString())
+                _gameKey.value = joinedGameKey
+                _idUser.value = joinedGameKey.idUser
+            }
         }
 
         WebSocketManager.registerHandler("LEAVE_GAME") {

@@ -114,112 +114,96 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
 
     private fun registerWebSocketHandlers() {
         WebSocketManager.registerHandler("RACE_GET_GAME") { json ->
-            Log.d("GamePageVM", "RACE_GET_GAME received: $json")
-            val response = Gson().fromJson(json.toString(), GetRaceGameResponse::class.java)
-            _gameDetails.value = response.game
-            _inputType.value = response.game.inputType
-            fullTermDefinitionQueue = response.game.termDefinitionPairs ?: emptyList()
-            
-            // If game is already over (e.g., page refresh)
-            if (response.game.currentRound == -1) {
-                _displayResults.value = true
-                // Potentially fetch final results if not included in RACE_GET_GAME
-            } else {
-                 // If currentRound is 0 or positive, it implies game is ongoing or about to start.
-                 // The server might send RACE_ROUND_START automatically, or we might need a trigger.
-                 // For now, assume server sends RACE_ROUND_START if game is active.
-                 // If it's a fresh game start, RACE_ROUND_START might come after all players are ready.
-                 // If page is refreshed mid-game, this setup helps restore state.
-                 _currentRound.value = response.game.currentRound
-                 if (_currentRound.value > 0 && _inputType.value == "Connecting") {
-                    // If refreshed mid-round for connecting game, re-initialize queue for current round
-                    prepareConnectingGameRound(_currentRound.value)
-                 }
-                 // If refreshed and countdown was active, or a new round is starting, server should send RACE_ROUND_START
+            viewModelScope.launch(Dispatchers.Default) {
+                val response = Gson().fromJson(json.toString(), GetRaceGameResponse::class.java)
+                _gameDetails.value = response.game
+                _inputType.value = response.game.inputType
+                fullTermDefinitionQueue = response.game.termDefinitionPairs ?: emptyList()
+                
+                // If game is already over (e.g., page refresh)
+                if (response.game.currentRound == -1) {
+                    _displayResults.value = true
+                } else {
+                    _currentRound.value = response.game.currentRound
+                    if (_currentRound.value > 0 && _inputType.value == "Connecting") {
+                        prepareConnectingGameRound(_currentRound.value)
+                    }
+                }
             }
         }
 
         WebSocketManager.registerHandler("RACE_ROUND_START") { json ->
-            Log.d("GamePageVM", "RACE_ROUND_START received: $json")
-            val response = Gson().fromJson(json.toString(), StartRaceRoundResponse::class.java)
-            _currentRound.value = response.raceGameInterRoundState.currentRound
-            _playerRoundResults.value = response.raceGameInterRoundState.playerResults
-            _displayResults.value = false // Ensure results screen is hidden
-            
-            if (_inputType.value == "Connecting") {
-                prepareConnectingGameRound(_currentRound.value)
+            viewModelScope.launch(Dispatchers.Default) {
+                val response = Gson().fromJson(json.toString(), StartRaceRoundResponse::class.java)
+                _currentRound.value = response.raceGameInterRoundState.currentRound
+                _playerRoundResults.value = response.raceGameInterRoundState.playerResults
+                _displayResults.value = false // Ensure results screen is hidden
+                
+                if (_inputType.value == "Connecting") {
+                    prepareConnectingGameRound(_currentRound.value)
+                }
+                startCountdownAndRound()
             }
-            startCountdownAndRound()
         }
 
         WebSocketManager.registerHandler("RACE_NEW_TERM") { json ->
-            Log.d("GamePageVM", "RACE_NEW_TERM received: $json")
-            if (_inputType.value == "Writing") {
-                val response = Gson().fromJson(json.toString(), NewTermResponse::class.java)
-                _writing_currentTerm.value = response.term
-                _writing_userResponse.value = ""
-                _writing_isWrongAnswer.value = false
+            viewModelScope.launch(Dispatchers.Default) {
+                if (_inputType.value == "Writing") {
+                    val response = Gson().fromJson(json.toString(), NewTermResponse::class.java)
+                    _writing_currentTerm.value = response.term
+                    _writing_userResponse.value = ""
+                    _writing_isWrongAnswer.value = false
+                }
             }
         }
 
         WebSocketManager.registerHandler("RACE_SUBMIT_ANSWER") { json ->
-            Log.d("GamePageVM", "RACE_SUBMIT_ANSWER response: $json")
-            val response = Gson().fromJson(json.toString(), SubmitAnswerResponse::class.java)
-            if (_inputType.value == "Writing") {
-                _writing_isWrongAnswer.value = !response.answerCorrect
-                _writing_currentTerm.value = response.termDefinitionPair.term // Server might send next term or repeat
-                if (!response.answerCorrect) {
-                    _writing_userResponse.value = response.termDefinitionPair.definition // Show correct if wrong
-                    updateMistakePairs(response.termDefinitionPair.term)
-                } else {
-                    _writing_userResponse.value = "" // Clear if correct
-                }
-                if (response.answerCorrect && !response.endOfRound) {
-                     sendRaceNewTermRequest() // Request next term
-                }
-            } else if (_inputType.value == "Connecting") {
-                _connecting_feedback.value = if (response.answerCorrect) "correct" else "incorrect"
-                viewModelScope.launch { // Clear feedback after a short delay
-                    delay(1000)
-                    _connecting_feedback.value = null
-                }
-                if (response.answerCorrect) {
-                    _connecting_connectedCount.value += 1
-                    
-                    val correctTerm = response.termDefinitionPair.term
-                    val correctDefinition = response.termDefinitionPair.definition
-
-                    // Remove from the source list for the current round
-                    unansweredPairsInCurrentRound.removeAll { it.term == correctTerm && it.definition == correctDefinition }
-
-                    // Refresh the displayed items (will pick new ones if available, or show fewer)
-                    refreshDisplayedConnectingPairs()
-
-                } else {
-                    _connecting_mistakesCount.value += 1
-                    updateMistakePairs(response.termDefinitionPair.term)
-                    // The Vue version moves to end of queue, here we might just keep it until server says round ends or gives new set.
-                    // For simplicity, we'll rely on the server to manage the overall round flow.
-                    // The current displayed items remain, user can try again or select others.
-                }
-                _connecting_selectedTerm.value = null
-                _connecting_selectedDefinition.value = null
-
-                // Check if all pairs for this round are connected
-                if (_connecting_displayedTerms.value.isEmpty() && !response.endOfRound) {
-                    // This implies client thinks round is done, but server response is king.
-                    // Server will send RACE_ROUND_START for next round or RACE_END.
-                    Log.d("GamePageVM", "Connecting: All pairs for this segment seem connected by client.")
+            viewModelScope.launch(Dispatchers.Default) {
+                val response = Gson().fromJson(json.toString(), SubmitAnswerResponse::class.java)
+                if (_inputType.value == "Writing") {
+                    _writing_isWrongAnswer.value = !response.answerCorrect
+                    _writing_currentTerm.value = response.termDefinitionPair.term
+                    if (!response.answerCorrect) {
+                        _writing_userResponse.value = response.termDefinitionPair.definition
+                        updateMistakePairs(response.termDefinitionPair.term)
+                    } else {
+                        _writing_userResponse.value = ""
+                    }
+                    if (response.answerCorrect && !response.endOfRound) {
+                        sendRaceNewTermRequest()
+                    }
+                } else if (_inputType.value == "Connecting") {
+                    _connecting_feedback.value = if (response.answerCorrect) "correct" else "incorrect"
+                    viewModelScope.launch { // Clear feedback after a short delay
+                        delay(1000)
+                        _connecting_feedback.value = null
+                    }
+                    if (response.answerCorrect) {
+                        _connecting_connectedCount.value += 1
+                        val correctTerm = response.termDefinitionPair.term
+                        val correctDefinition = response.termDefinitionPair.definition
+                        unansweredPairsInCurrentRound.removeAll { it.term == correctTerm && it.definition == correctDefinition }
+                        refreshDisplayedConnectingPairs()
+                    } else {
+                        _connecting_mistakesCount.value += 1
+                        updateMistakePairs(response.termDefinitionPair.term)
+                    }
+                    _connecting_selectedTerm.value = null
+                    _connecting_selectedDefinition.value = null
+                    if (_connecting_displayedTerms.value.isEmpty() && !response.endOfRound) {
+                        Log.d("GamePageVM", "Connecting: All pairs for this segment seem connected by client.")
+                    }
                 }
             }
         }
 
         WebSocketManager.registerHandler("RACE_END") { json ->
-            Log.d("GamePageVM", "RACE_END received: $json")
-            val response = Gson().fromJson(json.toString(), EndGameResponse::class.java)
-            _playerFinalResults.value = response.racePlayerResults
-            _displayResults.value = true
-            _showCountdown.value = false
+            viewModelScope.launch(Dispatchers.Default) {
+                val response = Gson().fromJson(json.toString(), EndGameResponse::class.java)
+                _playerFinalResults.value = response.racePlayerResults
+                _displayResults.value = true
+                _showCountdown.value = false
+            }
         }
     }
 
