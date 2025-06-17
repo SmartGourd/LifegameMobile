@@ -11,7 +11,9 @@ class WritingGameManager {
         val userResponse: String = "",
         val isWrongAnswer: Boolean = false,
         val isCorrectAnswer: Boolean = false,
-        val correctDefinition: String? = null
+        val correctDefinition: String? = null,
+        val mistakesCount: Int = 0,
+        val mistakePairs: Map<String, Int> = emptyMap()
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -26,11 +28,18 @@ class WritingGameManager {
     }
 
     fun setAnswerResult(isCorrect: Boolean, correctDefinition: String? = null) {
+        val currentTerm = _uiState.value.currentTerm
+        val currentMistakes = _uiState.value.mistakePairs.toMutableMap()
+        if (!isCorrect && currentTerm != null) {
+            currentMistakes[currentTerm] = (currentMistakes[currentTerm] ?: 0) + 1
+        }
         _uiState.value = _uiState.value.copy(
             isWrongAnswer = !isCorrect,
             isCorrectAnswer = isCorrect,
             correctDefinition = if (!isCorrect) correctDefinition else null,
-            userResponse = if (!isCorrect && correctDefinition != null) correctDefinition else _uiState.value.userResponse
+            userResponse = if (!isCorrect && correctDefinition != null) correctDefinition else _uiState.value.userResponse,
+            mistakesCount = if (!isCorrect) _uiState.value.mistakesCount + 1 else _uiState.value.mistakesCount,
+            mistakePairs = currentMistakes
         )
     }
 

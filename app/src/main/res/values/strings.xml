@@ -45,7 +45,8 @@
 
     <!-- Writing Section -->
     <string name="gamepage_writing_enter_definition">Enter definition</string>
-    <!-- <string name="gamepage_writing_submit">Submit</string> // Already defined above -->
+    <string name="gamepage_writing_mistakes">Mistakes: %1$d</string>
+    <string name="gamepage_writing_correct_definition">Correct answer: %1$s</string>
 
     <!-- Connecting Section -->
     <string name="gamepage_connecting_title">Connect the Pairs!</string>

@@ -82,8 +82,13 @@ fun GamePage(
                     onUserResponseChange = { viewModel.setWritingUserResponse(it) },
                     onSubmit = { viewModel.submitWritingAnswer() },
                     isWrong = writingUiState.isWrongAnswer,
-                    isCorrect = writingUiState.isCorrectAnswer
+                    isCorrect = writingUiState.isCorrectAnswer,
+                    correctDefinition = writingUiState.correctDefinition,
+                    mistakesCount = writingUiState.mistakesCount
                 )
+                if (displayResults && writingUiState.mistakePairs.isNotEmpty()) {
+                    MistakePairsSection(mistakePairs = writingUiState.mistakePairs)
+                }
             }
             inputType == "Connecting" -> {
                 val connectingUiState by viewModel.connectingGameManager.uiState.collectAsStateWithLifecycle()
@@ -199,7 +204,9 @@ fun WritingScreen(
     onUserResponseChange: (String) -> Unit,
     onSubmit: () -> Unit,
     isWrong: Boolean,
-    isCorrect: Boolean
+    isCorrect: Boolean,
+    correctDefinition: String?,
+    mistakesCount: Int
 ) {
     val backgroundColor = when {
         isCorrect -> colorResource(id = R.color.correct_background)
@@ -234,10 +241,21 @@ fun WritingScreen(
             modifier = Modifier.fillMaxWidth(0.8f),
             isError = isWrong
         )
+        if (isWrong && correctDefinition != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.gamepage_writing_correct_definition, correctDefinition),
+                color = colorResource(id = R.color.incorrect_background),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onSubmit) {
             Text(stringResource(R.string.gamepage_submit))
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = stringResource(R.string.gamepage_writing_mistakes, mistakesCount), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -344,5 +362,18 @@ fun SelectableItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+fun MistakePairsSection(mistakePairs: Map<String, Int>) {
+    Spacer(modifier = Modifier.height(24.dp))
+    Text(stringResource(R.string.gamepage_result_mistakes_summary), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+    mistakePairs.forEach { (term, count) ->
+        Text(
+            text = "'$term': $count ${stringResource(if (count > 1) R.string.gamepage_result_mistakes else R.string.gamepage_result_mistake)}",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(vertical = 2.dp)
+        )
     }
 }

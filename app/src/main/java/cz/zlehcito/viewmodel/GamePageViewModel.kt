@@ -123,8 +123,9 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                         isCorrect = response.answerCorrect,
                         correctDefinition = response.termDefinitionPair.definition
                     )
-                    writingGameManager.setCurrentTerm(response.termDefinitionPair.term)
+                    // Only set new term if answer was correct and not end of round
                     if (response.answerCorrect && !response.endOfRound) {
+                        writingGameManager.setCurrentTerm(response.termDefinitionPair.term)
                         sendRaceNewTermRequest()
                     }
                 } else if (_inputType.value == "Connecting") {
