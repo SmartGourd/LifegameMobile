@@ -6,262 +6,382 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import cz.zlehcito.model.EndGameResponse
-import cz.zlehcito.model.GetLobbyGameResponse
-import cz.zlehcito.model.LobbyGameDetail
+import cz.zlehcito.model.GetRaceGameResponse
 import cz.zlehcito.model.NewTermResponse
+import cz.zlehcito.model.RaceGame
 import cz.zlehcito.model.RacePlayerResult
 import cz.zlehcito.model.StartRaceRoundResponse
 import cz.zlehcito.model.SubmitAnswerResponse
 import cz.zlehcito.model.TermDefinitionPair
 import cz.zlehcito.network.WebSocketManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.Collections
 
 class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
-    private val _idGame: Int = savedStateHandle.get<Int>("gameId") ?: 0
-    private val _idUser: String = savedStateHandle.get<String>("userId") ?: ""
+    // Game IDs from navigation
+    private val _idGame: String = savedStateHandle.get<String>("idGame") ?: "" // Changed to String
+    private val _idUser: String = savedStateHandle.get<String>("idUser") ?: ""
 
     private companion object {
-        private const val COUNTDOWN_SECONDS = 3
+        private const val COUNTDOWN_INITIAL_SECONDS = 3
     }
 
-    // Use viewModelScope for coroutines tied to the ViewModel's lifecycle
-    private val countdownScope = CoroutineScope(SupervisorJob() + Dispatchers.Main + viewModelScope.coroutineContext)
+    // Game Details State (like props.gameDetails in Vue)
+    private val _gameDetails = MutableStateFlow<RaceGame?>(null)
+    val gameDetails: StateFlow<RaceGame?> = _gameDetails.asStateFlow()
 
-    private var currentRoundNumber: Int = 1 // Renamed to avoid conflict with StateFlow
+    private val _inputType = MutableStateFlow<String?>(null) // "Writing" or "Connecting"
+    val inputType: StateFlow<String?> = _inputType.asStateFlow()
 
-    private val _gameSetupState = MutableStateFlow<LobbyGameDetail?>(null)
-    val gameSetupState: StateFlow<LobbyGameDetail?> = _gameSetupState.asStateFlow()
+    // Countdown State
+    private val _showCountdown = MutableStateFlow(false)
+    val showCountdown: StateFlow<Boolean> = _showCountdown.asStateFlow()
 
-    private val _playerFinalResults = MutableStateFlow<List<RacePlayerResult>>(emptyList())
+    private val _countdownSeconds = MutableStateFlow(0)
+    val countdownSeconds: StateFlow<Int> = _countdownSeconds.asStateFlow()
+
+    // Game State
+    private val _currentRound = MutableStateFlow(0)
+    val currentRound: StateFlow<Int> = _currentRound.asStateFlow()
+
+    private val _displayResults = MutableStateFlow(false)
+    val displayResults: StateFlow<Boolean> = _displayResults.asStateFlow()
+
+    private val _playerRoundResults = MutableStateFlow<List<RacePlayerResult>>(emptyList()) // For inter-round results
+    val playerRoundResults: StateFlow<List<RacePlayerResult>> = _playerRoundResults.asStateFlow()
+    
+    private val _playerFinalResults = MutableStateFlow<List<RacePlayerResult>>(emptyList()) // For final game results
     val playerFinalResults: StateFlow<List<RacePlayerResult>> = _playerFinalResults.asStateFlow()
 
-    private val _showResults = MutableStateFlow(false)
-    val showResults: StateFlow<Boolean> = _showResults.asStateFlow()
+    private val _mistakePairs = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val mistakePairs: StateFlow<Map<String, Int>> = _mistakePairs.asStateFlow()
 
-    private val _secondsOfCountdown = MutableStateFlow(0)
-    val secondsOfCountdown: StateFlow<Int> = _secondsOfCountdown.asStateFlow()
+    // Writing Game Specific State
+    private val _writing_currentTerm = MutableStateFlow<String?>(null)
+    val writing_currentTerm: StateFlow<String?> = _writing_currentTerm.asStateFlow()
 
-    private val _termDefinitionPairsQueueThisRound =
-        MutableStateFlow<List<TermDefinitionPair>>(emptyList())
-    val termDefinitionPairsQueueThisRound: StateFlow<List<TermDefinitionPair>> = _termDefinitionPairsQueueThisRound.asStateFlow()
+    private val _writing_userResponse = MutableStateFlow("")
+    val writing_userResponse: StateFlow<String> = _writing_userResponse.asStateFlow()
 
-    private val _mistakeDictionary = MutableStateFlow<Map<String, Int>>(emptyMap())
-    val mistakeDictionary: StateFlow<Map<String, Int>> = _mistakeDictionary.asStateFlow()
+    private val _writing_isWrongAnswer = MutableStateFlow(false)
+    val writing_isWrongAnswer: StateFlow<Boolean> = _writing_isWrongAnswer.asStateFlow()
 
-    private val _currentTerm = MutableStateFlow("")
-    val currentTerm: StateFlow<String> = _currentTerm.asStateFlow()
+    // Connecting Game Specific State
+    private var fullTermDefinitionQueue: List<TermDefinitionPair> = emptyList() // Full list for the game
+    private val _connecting_termDefinitionQueueThisRound = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
+    val connecting_termDefinitionQueueThisRound: StateFlow<List<TermDefinitionPair>> = _connecting_termDefinitionQueueThisRound.asStateFlow()
 
-    private val _currentDefinition = MutableStateFlow("")
-    val currentDefinition: StateFlow<String> = _currentDefinition.asStateFlow()
+    private val _connecting_displayedTerms = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
+    val connecting_displayedTerms: StateFlow<List<TermDefinitionPair>> = _connecting_displayedTerms.asStateFlow()
 
-    private val _lastOneWasCorrect = MutableStateFlow(true)
-    val lastOneWasCorrect: StateFlow<Boolean> = _lastOneWasCorrect.asStateFlow()
+    private val _connecting_displayedDefinitions = MutableStateFlow<List<TermDefinitionPair>>(emptyList())
+    val connecting_displayedDefinitions: StateFlow<List<TermDefinitionPair>> = _connecting_displayedDefinitions.asStateFlow()
+    
+    private val _connecting_selectedTerm = MutableStateFlow<TermDefinitionPair?>(null)
+    val connecting_selectedTerm: StateFlow<TermDefinitionPair?> = _connecting_selectedTerm.asStateFlow()
+
+    private val _connecting_selectedDefinition = MutableStateFlow<TermDefinitionPair?>(null)
+    val connecting_selectedDefinition: StateFlow<TermDefinitionPair?> = _connecting_selectedDefinition.asStateFlow()
+
+    private val _connecting_connectedCount = MutableStateFlow(0)
+    val connecting_connectedCount: StateFlow<Int> = _connecting_connectedCount.asStateFlow()
+
+    private val _connecting_mistakesCount = MutableStateFlow(0) // Mistakes within the connecting component
+    val connecting_mistakesCount: StateFlow<Int> = _connecting_mistakesCount.asStateFlow()
+
+    private val _connecting_feedback = MutableStateFlow<String?>(null) // "correct" or "incorrect"
+    val connecting_feedback: StateFlow<String?> = _connecting_feedback.asStateFlow()
+
 
     private val _navigateToLobby = MutableStateFlow<Boolean>(false)
     val navigateToLobby: StateFlow<Boolean> = _navigateToLobby.asStateFlow()
 
     init {
+        Log.d("GamePageVM", "Initializing with idGame: $_idGame, idUser: $_idUser")
         registerWebSocketHandlers()
-        resetGameStateAndStart()
     }
 
+
+    private fun registerWebSocketHandlers() {
+        WebSocketManager.registerHandler("RACE_GET_GAME") { json ->
+            Log.d("GamePageVM", "RACE_GET_GAME received: $json")
+            val response = Gson().fromJson(json.toString(), GetRaceGameResponse::class.java)
+            _gameDetails.value = response.game
+            _inputType.value = response.game.inputType
+            fullTermDefinitionQueue = response.game.termDefinitionPairs ?: emptyList()
+            
+            // If game is already over (e.g., page refresh)
+            if (response.game.currentRound == -1) {
+                _displayResults.value = true
+                // Potentially fetch final results if not included in RACE_GET_GAME
+            } else {
+                 // If currentRound is 0 or positive, it implies game is ongoing or about to start.
+                 // The server might send RACE_ROUND_START automatically, or we might need a trigger.
+                 // For now, assume server sends RACE_ROUND_START if game is active.
+                 // If it's a fresh game start, RACE_ROUND_START might come after all players are ready.
+                 // If page is refreshed mid-game, this setup helps restore state.
+                 _currentRound.value = response.game.currentRound
+                 if (_currentRound.value > 0 && _inputType.value == "Connecting") {
+                    // If refreshed mid-round for connecting game, re-initialize queue for current round
+                    prepareConnectingGameRound(_currentRound.value)
+                 }
+                 // If refreshed and countdown was active, or a new round is starting, server should send RACE_ROUND_START
+            }
+        }
+
+        WebSocketManager.registerHandler("RACE_ROUND_START") { json ->
+            Log.d("GamePageVM", "RACE_ROUND_START received: $json")
+            val response = Gson().fromJson(json.toString(), StartRaceRoundResponse::class.java)
+            _currentRound.value = response.raceGameInterRoundState.currentRound
+            _playerRoundResults.value = response.raceGameInterRoundState.playerResults
+            _displayResults.value = false // Ensure results screen is hidden
+            
+            if (_inputType.value == "Connecting") {
+                prepareConnectingGameRound(_currentRound.value)
+            }
+            startCountdownAndRound()
+        }
+
+        WebSocketManager.registerHandler("RACE_NEW_TERM") { json ->
+            Log.d("GamePageVM", "RACE_NEW_TERM received: $json")
+            if (_inputType.value == "Writing") {
+                val response = Gson().fromJson(json.toString(), NewTermResponse::class.java)
+                _writing_currentTerm.value = response.term
+                _writing_userResponse.value = ""
+                _writing_isWrongAnswer.value = false
+            }
+        }
+
+        WebSocketManager.registerHandler("RACE_SUBMIT_ANSWER") { json ->
+            Log.d("GamePageVM", "RACE_SUBMIT_ANSWER response: $json")
+            val response = Gson().fromJson(json.toString(), SubmitAnswerResponse::class.java)
+            if (_inputType.value == "Writing") {
+                _writing_isWrongAnswer.value = !response.answerCorrect
+                _writing_currentTerm.value = response.termDefinitionPair.term // Server might send next term or repeat
+                if (!response.answerCorrect) {
+                    _writing_userResponse.value = response.termDefinitionPair.definition // Show correct if wrong
+                    updateMistakePairs(response.termDefinitionPair.term)
+                } else {
+                    _writing_userResponse.value = "" // Clear if correct
+                }
+                if (response.answerCorrect && !response.endOfRound) {
+                     sendRaceNewTermRequest() // Request next term
+                }
+            } else if (_inputType.value == "Connecting") {
+                _connecting_feedback.value = if (response.answerCorrect) "correct" else "incorrect"
+                viewModelScope.launch { // Clear feedback after a short delay
+                    delay(1000)
+                    _connecting_feedback.value = null
+                }
+                if (response.answerCorrect) {
+                    _connecting_connectedCount.value += 1
+                    // Remove from displayed lists
+                    val termToRemove = response.termDefinitionPair.term
+                    _connecting_displayedTerms.value = _connecting_displayedTerms.value.filterNot { it.term == termToRemove }
+                    _connecting_displayedDefinitions.value = _connecting_displayedDefinitions.value.filterNot { it.term == termToRemove }
+
+                } else {
+                    _connecting_mistakesCount.value += 1
+                    updateMistakePairs(response.termDefinitionPair.term)
+                    // The Vue version moves to end of queue, here we might just keep it until server says round ends or gives new set.
+                    // For simplicity, we'll rely on the server to manage the overall round flow.
+                    // The current displayed items remain, user can try again or select others.
+                }
+                _connecting_selectedTerm.value = null
+                _connecting_selectedDefinition.value = null
+
+                // Check if all pairs for this round are connected
+                if (_connecting_displayedTerms.value.isEmpty() && !response.endOfRound) {
+                    // This implies client thinks round is done, but server response is king.
+                    // Server will send RACE_ROUND_START for next round or RACE_END.
+                    Log.d("GamePageVM", "Connecting: All pairs for this segment seem connected by client.")
+                }
+            }
+        }
+
+        WebSocketManager.registerHandler("RACE_END") { json ->
+            Log.d("GamePageVM", "RACE_END received: $json")
+            val response = Gson().fromJson(json.toString(), EndGameResponse::class.java)
+            _playerFinalResults.value = response.racePlayerResults
+            _displayResults.value = true
+            _showCountdown.value = false
+        }
+    }
+
+    private fun startCountdownAndRound() {
+        _showCountdown.value = true
+        _countdownSeconds.value = COUNTDOWN_INITIAL_SECONDS
+        viewModelScope.launch {
+            repeat(COUNTDOWN_INITIAL_SECONDS) {
+                delay(1000)
+                _countdownSeconds.value -= 1
+            }
+            _showCountdown.value = false
+            // After countdown, start the actual round logic
+            if (_inputType.value == "Writing") {
+                sendRaceNewTermRequest() // Request the first term for writing game
+            } else if (_inputType.value == "Connecting") {
+                // For connecting, pairs are already prepared by prepareConnectingGameRound
+                // UI will become active.
+            }
+        }
+    }
+    
+    private fun prepareConnectingGameRound(roundNumber: Int) {
+        val game = _gameDetails.value ?: return
+        val roundCount = game.roundCount.takeIf { it > 0 } ?: 1 // Avoid division by zero if roundCount is 0
+        val totalPairs = fullTermDefinitionQueue.size
+
+        val roundSize = totalPairs / roundCount
+        val extraItems = totalPairs % roundCount
+
+        val startIdx = (roundNumber - 1) * roundSize + minOf(roundNumber - 1, extraItems)
+        val endIdx = minOf(roundNumber * roundSize + minOf(roundNumber, extraItems), totalPairs)
+        
+        if (startIdx >= endIdx) {
+            _connecting_termDefinitionQueueThisRound.value = emptyList()
+            _connecting_displayedTerms.value = emptyList()
+            _connecting_displayedDefinitions.value = emptyList()
+            Log.w("GamePageVM", "Connecting: No pairs for round $roundNumber. Start: $startIdx, End: $endIdx, Total: $totalPairs")
+            return
+        }
+
+        val pairsForRound = fullTermDefinitionQueue.slice(startIdx until endIdx).toMutableList()
+        
+        _connecting_termDefinitionQueueThisRound.value = pairsForRound
+        
+        val terms = pairsForRound.map { TermDefinitionPair(it.term, "") }.toMutableList() // Keep original index via object identity for matching
+        Collections.shuffle(terms)
+        _connecting_displayedTerms.value = terms
+
+        val definitions = pairsForRound.map { TermDefinitionPair("", it.definition) }.toMutableList()
+        Collections.shuffle(definitions)
+        _connecting_displayedDefinitions.value = definitions
+        
+        _connecting_connectedCount.value = 0
+        _connecting_mistakesCount.value = 0
+        _connecting_selectedTerm.value = null
+        _connecting_selectedDefinition.value = null
+        Log.d("GamePageVM", "Connecting: Prepared round $roundNumber with ${pairsForRound.size} pairs.")
+    }
+
+
+    fun sendGetGameRequest() {
+        val request = JSONObject().apply {
+            put("\$type", "RACE_GET_GAME") // Assuming this is the type to get game details
+            put("gameManipulationKey", JSONObject().apply {
+                put("IdGame", _idGame)
+                put("IdUser", _idUser)
+            })
+        }
+        WebSocketManager.sendMessage(request)
+        Log.d("GamePageVM", "Sent RACE_GET_GAME request for game: $_idGame")
+    }
+
+    private fun sendRaceNewTermRequest() {
+        val request = JSONObject().apply {
+            put("\$type", "RACE_NEW_TERM")
+            put("gameManipulationKey", JSONObject().apply {
+                put("idGame", _idGame)
+                put("idUser", _idUser)
+            })
+        }
+        WebSocketManager.sendMessage(request)
+        Log.d("GamePageVM", "Sent RACE_NEW_TERM request")
+    }
+
+    fun submitWritingAnswer() {
+        if (_inputType.value == "Writing" && _writing_currentTerm.value != null) {
+            val request = JSONObject().apply {
+                put("\$type", "RACE_SUBMIT_ANSWER")
+                put("gameManipulationKey", JSONObject().apply {
+                    put("idGame", _idGame)
+                    put("idUser", _idUser)
+                })
+                put("answer", JSONObject().apply {
+                    put("term", _writing_currentTerm.value)
+                    put("definition", _writing_userResponse.value)
+                })
+            }
+            WebSocketManager.sendMessage(request)
+            Log.d("GamePageVM", "Sent RACE_SUBMIT_ANSWER for Writing: Term='${_writing_currentTerm.value}', Def='${_writing_userResponse.value}'")
+        }
+    }
+    
+    fun setWritingUserResponse(response: String) {
+        _writing_userResponse.value = response
+    }
+
+    fun selectConnectingTerm(termPair: TermDefinitionPair) {
+        _connecting_selectedTerm.value = termPair
+        checkConnectingMatch()
+    }
+
+    fun selectConnectingDefinition(defPair: TermDefinitionPair) {
+        _connecting_selectedDefinition.value = defPair
+        checkConnectingMatch()
+    }
+
+    private fun checkConnectingMatch() {
+        val term = _connecting_selectedTerm.value
+        val definition = _connecting_selectedDefinition.value
+
+        if (term != null && definition != null) {
+            // Find the original full pair for the selected term
+            val originalPairForTerm = _connecting_termDefinitionQueueThisRound.value.find { it.term == term.term }
+
+            if (originalPairForTerm != null && originalPairForTerm.definition == definition.definition) {
+                // This is a client-side pre-check. Server will confirm.
+                // Send to server
+                sendConnectingAnswer(originalPairForTerm.term, originalPairForTerm.definition)
+            } else if (originalPairForTerm != null) { // Mismatch
+                sendConnectingAnswer(originalPairForTerm.term, definition.definition) // Send the incorrect attempt
+            } else {
+                // Should not happen if termPair.term is from displayedTerms
+                 _connecting_selectedTerm.value = null
+                 _connecting_selectedDefinition.value = null
+            }
+        }
+    }
+    
+    private fun sendConnectingAnswer(term: String, definition: String) {
+        val request = JSONObject().apply {
+            put("\$type", "RACE_SUBMIT_ANSWER")
+            put("gameManipulationKey", JSONObject().apply {
+                put("idGame", _idGame)
+                put("idUser", _idUser)
+            })
+            put("answer", JSONObject().apply {
+                put("term", term)
+                put("definition", definition)
+            })
+        }
+        WebSocketManager.sendMessage(request)
+        Log.d("GamePageVM", "Sent RACE_SUBMIT_ANSWER for Connecting: Term='$term', Def='$definition'")
+    }
+
+    private fun updateMistakePairs(term: String) {
+        val currentMistakes = _mistakePairs.value.toMutableMap()
+        currentMistakes[term] = (currentMistakes[term] ?: 0) + 1
+        _mistakePairs.value = currentMistakes
+    }
+    
     fun onNavigateToLobbyClicked() {
         _navigateToLobby.value = true
     }
 
     fun onNavigationDone() {
-        _navigateToLobby.value = false // Reset after navigation
+        _navigateToLobby.value = false
     }
 
-    private fun registerWebSocketHandlers() {
-        WebSocketManager.registerHandler("RACE_GET_GAME") { json ->
-            _gameSetupState.value = parseGameSetupStateJson(json.toString())
-        }
-
-        WebSocketManager.registerHandler("RACE_ROUND_START") { json ->
-            currentRoundNumber = parseStartRaceRoundJson(json.toString()).toInt()
-            startCountdown()
-            // sendRaceNewTermRequest() // This might be called after countdown or based on game logic
-        }
-
-        WebSocketManager.registerHandler("RACE_SUBMIT_ANSWER") { json ->
-            val submitAnswerResponse = parseSubmitAnswerJson(json.toString())
-            _currentTerm.value = submitAnswerResponse?.termDefinitionPair?.term ?: ""
-            _lastOneWasCorrect.value = submitAnswerResponse?.answerCorrect ?: false
-            if (!(_lastOneWasCorrect.value)) {
-                _currentDefinition.value =
-                    submitAnswerResponse?.termDefinitionPair?.definition ?: ""
-            }
-            // If end of round, RACE_ROUND_START or RACE_END should be triggered by server.
-            // If not end of round and answer was correct, server might send RACE_NEW_TERM or client requests it.
-            if (submitAnswerResponse?.answerCorrect == true && submitAnswerResponse.endOfRound == false) {
-                sendRaceNewTermRequest() // Request new term if correct and not end of round
-            }
-        }
-
-        WebSocketManager.registerHandler("RACE_NEW_TERM") { json ->
-            _currentTerm.value = parseNewTermJson(json.toString())
-            _currentDefinition.value = "" // Clear previous definition
-            _lastOneWasCorrect.value = true // Assume correct until next submission
-        }
-
-        WebSocketManager.registerHandler("RACE_END") { json ->
-            _playerFinalResults.value = parseEndGameResultsJson(json.toString())
-            _showResults.value = true
-        }
+    override fun onCleared() {
+        super.onCleared()
+        // Unregister handlers if WebSocketManager allows it, or handle disconnection
+        Log.d("GamePageVM", "ViewModel cleared")
     }
-
-    private fun resetGameStateAndStart() {
-        _showResults.value = false
-        _mistakeDictionary.value = emptyMap()
-        _currentTerm.value = ""
-        _currentDefinition.value = ""
-        _lastOneWasCorrect.value = true
-        currentRoundNumber = 1 // Reset round number
-
-        if (WebSocketManager.isConnected()) {
-            sendGetGameRequest() // To get initial game setup like terms
-            // Initial RACE_ROUND_START should be sent by server after subscription or game start signal
-            // Or, if client needs to initiate the first round start signal:
-            // sendRaceRoundStartRequest() // Or similar, if applicable
-        } else {
-            // Handle WebSocket not connected
-        }
-    }
-
-    private fun startCountdown() {
-        _secondsOfCountdown.value = COUNTDOWN_SECONDS
-        viewModelScope.launch { // Use viewModelScope for lifecycle-aware coroutines
-            repeat(COUNTDOWN_SECONDS) { i ->
-                delay(1000) // Wait 1 second
-                _secondsOfCountdown.value = COUNTDOWN_SECONDS - i - 1
-            }
-            if (_secondsOfCountdown.value == 0) {
-                 sendRaceNewTermRequest() // Request first term after countdown finishes
-            }
-        }
-    }
-
-    fun checkDefinitionCorrectness() {
-        sendRaceSubmitAnswer(currentTerm.value, _currentDefinition.value)
-        // _currentDefinition.value = "" // Server response will dictate new term/definition
-    }
-
-    fun setCurrentDefinition(definition: String) {
-        _currentDefinition.value = definition
-    }
-
-    fun pairConnected(term: String, definition: String): Boolean {
-        // This logic might need adjustment based on how RACE_SUBMIT_ANSWER response works for connecting games
-        // For connecting games, the server response should ideally confirm the match and update state.
-        // The client-side queue manipulation might become redundant or lead to inconsistencies.
-        // For now, we send the answer and let server response guide the state.
-        sendRaceSubmitAnswer(term, definition)
-
-        // Placeholder: The actual result of connection should come from server via RACE_SUBMIT_ANSWER handler
-        // For immediate UI feedback, you might optimistically update, but server is source of truth.
-        val currentQueue = _termDefinitionPairsQueueThisRound.value.toMutableList()
-        val pairToCheck = TermDefinitionPair(term, definition)
-        val isMatch = currentQueue.any { it.term == term && it.definition == definition } 
-
-        // Optimistic update (consider if this is desired or if server should be sole source of truth)
-        if (isMatch) {
-            _termDefinitionPairsQueueThisRound.value = currentQueue.filterNot { it.term == term && it.definition == definition }
-        } else {
-            // Handle incorrect match display or feedback if needed, server response will also indicate this
-        }
-        return isMatch // This return might be for immediate UI, but server response is key
-    }
-
-    private fun sendRaceSubmitAnswer(term: String, definition: String) {
-        val personalGameDataRequest = JSONObject().apply {
-            put("${'$'}type", "RACE_SUBMIT_ANSWER")
-            put("gameManipulationKey", JSONObject().apply {
-                put("IdGame", _idGame)
-                put("IdUser", _idUser)
-            })
-            put("Answer", JSONObject().apply {
-                put("Term", term)
-                put("Definition", definition)
-            })
-        }
-        WebSocketManager.sendMessage(personalGameDataRequest)
-    }
-
-    private fun sendRaceNewTermRequest() {
-        val personalGameDataRequest = JSONObject().apply {
-            put("${'$'}type", "RACE_NEW_TERM")
-            put("gameManipulationKey", JSONObject().apply {
-                put("IdGame", _idGame)
-                put("IdUser", _idUser)
-            })
-        }
-        WebSocketManager.sendMessage(personalGameDataRequest)
-    }
-
-    private fun sendGetGameRequest() {
-        val getGameRequest = JSONObject().apply {
-            put("${'$'}type", "RACE_GET_GAME")
-            put("gameManipulationKey", JSONObject().apply {
-                put("IdGame", _idGame)
-                put("IdUser", _idUser)
-            })
-        }
-        WebSocketManager.sendMessage(getGameRequest)
-    }
-
-    //region Parsers
-    private fun parseGameSetupStateJson(response: String): LobbyGameDetail? {
-        return try {
-            Gson().fromJson(response, GetLobbyGameResponse::class.java)?.game
-        } catch (e: Exception) {
-            // Log.e("GamePageVM", "Error parsing GameSetupState: $e")
-            _gameSetupState.value // Keep existing on error
-        }
-    }
-
-    private fun parseStartRaceRoundJson(response: String): Number {
-        return try {
-            Gson().fromJson(response, StartRaceRoundResponse::class.java)?.raceGameInterRoundState?.currentRound ?: 0
-        } catch (e: Exception) {
-            // Log.e("GamePageVM", "Error parsing StartRaceRound: $e")
-            0
-        }
-    }
-
-    private fun parseEndGameResultsJson(response: String): List<RacePlayerResult> {
-        return try {
-            Gson().fromJson(response, EndGameResponse::class.java)?.racePlayerResults ?: emptyList()
-        } catch (e: Exception) {
-            // Log.e("GamePageVM", "Error parsing EndGameResults: $e")
-            _playerFinalResults.value // Keep existing on error
-        }
-    }
-
-    private fun parseSubmitAnswerJson(response: String): SubmitAnswerResponse? {
-        return try {
-            Gson().fromJson(response, SubmitAnswerResponse::class.java)
-        } catch (e: Exception) {
-            // Log.e("GamePageVM", "Error parsing SubmitAnswer: $e")
-            null
-        }
-    }
-
-    private fun parseNewTermJson(response: String): String {
-        return try {
-            Gson().fromJson(response, NewTermResponse::class.java)?.term ?: ""
-        } catch (e: Exception) {
-            // Log.e("GamePageVM", "Error parsing NewTerm: $e")
-            ""
-        }
-    }
-    //endregion
 }

@@ -29,19 +29,33 @@
     <string name="gamesetup_back_to_lobby">Back to Lobby</string>
 
     <!-- GamePage Strings -->
+    <string name="gamepage_loading_game_details">Loading game details...</string>
+    <string name="gamepage_waiting_for_term">Waiting for term...</string>
+    <string name="gamepage_submit">Submit</string>
+
     <!-- Results Section -->
     <string name="gamepage_result_title">Results</string>
     <string name="gamepage_result_loading">Loading results</string>
     <string name="gamepage_result_back_to_lobby">Back to Lobby</string>
     <string name="gamepage_result_points">points</string>
-    <string name="gamepage_result_mistakes_title">Mistakes</string>
+    <string name="gamepage_result_player_scores">Player Scores</string>
+    <string name="gamepage_result_mistakes_summary">Mistakes Summary</string>
     <string name="gamepage_result_mistake">mistake</string>
     <string name="gamepage_result_mistakes">mistakes</string>
 
     <!-- Writing Section -->
     <string name="gamepage_writing_enter_definition">Enter definition</string>
-    <string name="gamepage_writing_submit">Submit</string>
+    <!-- <string name="gamepage_writing_submit">Submit</string> // Already defined above -->
 
     <!-- Connecting Section -->
-    <string name="gamepage_connecting_game_title">Connect the pairs!</string>
+    <string name="gamepage_connecting_title">Connect the Pairs!</string>
+    <string name="gamepage_connecting_terms">Terms</string>
+    <string name="gamepage_connecting_definitions">Definitions</string>
+    <string name="gamepage_connecting_round_cleared">Round Cleared!</string>
+    <string name="gamepage_connecting_no_terms">No terms to display.</string>
+    <string name="gamepage_connecting_no_definitions">No definitions to display.</string>
+    <string name="gamepage_connecting_connected">Connected</string>
+    <string name="gamepage_connecting_mistakes">Mistakes</string>
+    <string name="gamepage_connecting_done">Done</string>
+
 </resources>

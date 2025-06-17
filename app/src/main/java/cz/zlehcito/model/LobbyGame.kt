@@ -1,6 +1,5 @@
 package cz.zlehcito.model
 
-//
 data class GetLobbyGamesResponse(
     val games: List<LobbyGameForList>
 )

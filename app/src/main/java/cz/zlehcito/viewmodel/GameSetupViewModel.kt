@@ -55,12 +55,6 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
             // _gameKey.value = _defaultKeyValue.copy(idGame = _idGame)
             // _gameSetupState.value = null
         }
-
-        // Ensure this is called when GameSetup becomes active
-        if (WebSocketManager.isConnected()) {
-            sendSubscriptionPutGameSetupRequest() // Made public, called on init
-            sendGetGameRequest()
-        }
     }
 
     fun sendSubscriptionPutGameSetupRequest() { // Changed to public
@@ -74,7 +68,7 @@ class GameSetupViewModel(private val savedStateHandle: SavedStateHandle) : ViewM
         WebSocketManager.sendMessage(sendSubscriptionPutRequest)
     }
 
-    private fun sendGetGameRequest() {
+    fun sendGetGameRequest() {
         val getGameRequest = JSONObject().apply {
             put("${'$'}type", "GET_GAME")
             put("idGame", _idGame)

@@ -33,6 +33,11 @@ fun GameSetupPage(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.sendSubscriptionPutGameSetupRequest()
+        viewModel.sendGetGameRequest()
+    }
+
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier

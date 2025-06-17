@@ -1,15 +1,18 @@
 package cz.zlehcito.ui.pages
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -25,7 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.zlehcito.model.RacePlayerResult
 import cz.zlehcito.model.TermDefinitionPair
-import cz.zlehcito.viewmodel.GamePageViewModel // Added ViewModel import
+import cz.zlehcito.viewmodel.GamePageViewModel
 
 import cz.zlehcito.R
 import androidx.compose.ui.res.stringResource
@@ -34,66 +37,91 @@ import org.koin.core.parameter.parametersOf
 
 @Composable
 fun GamePage(
-    idGame: String, // Renamed from idGame for consistency with ViewModel
-    idUser: String, // Renamed from idUser for consistency with ViewModel
+    idGame: String,
+    idUser: String,
     navigateToLobbyPage: () -> Unit,
-    viewModel: GamePageViewModel = koinViewModel(parameters = { parametersOf(idGame, idUser) }) // Inject ViewModel
+    viewModel: GamePageViewModel = koinViewModel(parameters = { parametersOf(idGame, idUser) })
 ) {
-    // Observe navigation events from ViewModel
-    LaunchedEffect(viewModel.navigateToLobby) { // Observe the specific state flow
+    val gameDetails by viewModel.gameDetails.collectAsStateWithLifecycle()
+    val inputType by viewModel.inputType.collectAsStateWithLifecycle()
+    val showCountdown by viewModel.showCountdown.collectAsStateWithLifecycle()
+    val countdownSeconds by viewModel.countdownSeconds.collectAsStateWithLifecycle()
+    val displayResults by viewModel.displayResults.collectAsStateWithLifecycle()
+    val playerFinalResults by viewModel.playerFinalResults.collectAsStateWithLifecycle()
+    val mistakePairs by viewModel.mistakePairs.collectAsStateWithLifecycle()
+    // val currentRound by viewModel.currentRound.collectAsStateWithLifecycle() // For UI if needed
+
+    // Navigate to Lobby when triggered by ViewModel
+    LaunchedEffect(viewModel.navigateToLobby) {
         viewModel.navigateToLobby.collect { shouldNavigate ->
             if (shouldNavigate) {
                 navigateToLobbyPage()
-                viewModel.onNavigationDone() // Reset the navigation trigger
+                viewModel.onNavigationDone()
             }
         }
     }
+    LaunchedEffect(Unit) {
+        viewModel.sendGetGameRequest()
+    }
 
-    val showResults by viewModel.showResults.collectAsStateWithLifecycle()
-    val playerFinalResults by viewModel.playerFinalResults.collectAsStateWithLifecycle()
-    val mistakeDictionary by viewModel.mistakeDictionary.collectAsStateWithLifecycle()
-    val secondsOfCountdown by viewModel.secondsOfCountdown.collectAsStateWithLifecycle()
-    val termDefinitionPairsQueueThisRound by viewModel.termDefinitionPairsQueueThisRound.collectAsStateWithLifecycle()
-    val currentTerm by viewModel.currentTerm.collectAsStateWithLifecycle()
-    val currentDefinition by viewModel.currentDefinition.collectAsStateWithLifecycle()
-    val answerCorrect by viewModel.lastOneWasCorrect.collectAsStateWithLifecycle()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        val backgroundColor = if (answerCorrect) {
-            colorResource(id = R.color.correct_background)
-        } else {
-            colorResource(id = R.color.incorrect_background)
-        }
         when {
-            showResults -> {
+            displayResults -> {
                 ResultsScreen(
-                    onNavigateToLobby = { viewModel.onNavigateToLobbyClicked() }, // Use ViewModel event
+                    onNavigateToLobby = { viewModel.onNavigateToLobbyClicked() },
                     playerFinalResults = playerFinalResults,
-                    mistakeDictionary = mistakeDictionary
+                    mistakePairs = mistakePairs
                 )
             }
-
-            secondsOfCountdown > 0 -> {
-                CountdownScreen(secondsOfCountdown = secondsOfCountdown)
+            showCountdown -> {
+                CountdownScreen(seconds = countdownSeconds)
             }
-            /*
-            gameSetupState?.inputType == "Writing" -> {
+            inputType == "Writing" -> {
+                val currentTerm by viewModel.writing_currentTerm.collectAsStateWithLifecycle()
+                val userResponse by viewModel.writing_userResponse.collectAsStateWithLifecycle()
+                val isWrong by viewModel.writing_isWrongAnswer.collectAsStateWithLifecycle()
                 WritingScreen(
-                    currentTerm = currentTerm,
-                    currentDefinition = currentDefinition,
-                    onDefinitionChange = { viewModel.setCurrentDefinition(it) },
-                    onSubmit = { viewModel.checkDefinitionCorrectness() },
-                    backgroundColor = backgroundColor
+                    currentTerm = currentTerm ?: stringResource(R.string.gamepage_waiting_for_term),
+                    userResponse = userResponse,
+                    onUserResponseChange = { viewModel.setWritingUserResponse(it) },
+                    onSubmit = { viewModel.submitWritingAnswer() },
+                    isWrong = isWrong
                 )
             }
-            */
+            inputType == "Connecting" -> {
+                val displayedTerms by viewModel.connecting_displayedTerms.collectAsStateWithLifecycle()
+                val displayedDefinitions by viewModel.connecting_displayedDefinitions.collectAsStateWithLifecycle()
+                val selectedTerm by viewModel.connecting_selectedTerm.collectAsStateWithLifecycle()
+                val selectedDefinition by viewModel.connecting_selectedDefinition.collectAsStateWithLifecycle()
+                val connectedCount by viewModel.connecting_connectedCount.collectAsStateWithLifecycle()
+                val mistakesCount by viewModel.connecting_mistakesCount.collectAsStateWithLifecycle()
+                val feedback by viewModel.connecting_feedback.collectAsStateWithLifecycle()
+                val totalPairsInRound = viewModel.connecting_termDefinitionQueueThisRound.collectAsStateWithLifecycle().value.size
 
-            else -> { // Assuming "Connecting" type if not "Writing" and not countdown/results
                 ConnectingScreen(
-                    termDefinitionPairsQueueThisRound = termDefinitionPairsQueueThisRound,
-                    onPairConnected = { term, definition -> viewModel.pairConnected(term, definition) }, // Pass event handler
-                    backgroundColor = backgroundColor
+                    displayedTerms = displayedTerms,
+                    displayedDefinitions = displayedDefinitions,
+                    onTermSelected = { viewModel.selectConnectingTerm(it) },
+                    onDefinitionSelected = { viewModel.selectConnectingDefinition(it) },
+                    selectedTerm = selectedTerm,
+                    selectedDefinition = selectedDefinition,
+                    connectedCount = connectedCount,
+                    mistakesCount = mistakesCount,
+                    totalPairsInRound = totalPairsInRound,
+                    feedback = feedback
                 )
+            }
+            else -> {
+                // Loading state or placeholder if gameDetails or inputType is not yet available
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                    Text(stringResource(R.string.gamepage_loading_game_details))
+                }
             }
         }
     }
@@ -101,9 +129,9 @@ fun GamePage(
 
 @Composable
 fun ResultsScreen(
-    onNavigateToLobby: () -> Unit, // Changed from navigateToLobbyPage
+    onNavigateToLobby: () -> Unit,
     playerFinalResults: List<RacePlayerResult>,
-    mistakeDictionary: Map<String, Int>
+    mistakePairs: Map<String, Int>
 ) {
     Column(
         modifier = Modifier
@@ -114,57 +142,54 @@ fun ResultsScreen(
     ) {
         Text(
             text = stringResource(id = R.string.gamepage_result_title),
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        if (playerFinalResults.isEmpty()) {
-            Text(text = stringResource(id = R.string.gamepage_result_loading))
-        } else {
-            var place = 1
-            playerFinalResults.sortedByDescending { it.points }.forEach { player ->
-                Text(
-                    text = "$place. ${player.inGameName}: ${player.points} ${stringResource(id = R.string.gamepage_result_points)}",
-                    fontSize = 18.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                place++
-            }
-        }
         Button(
-            onClick = onNavigateToLobby, // Use passed lambda
-            modifier = Modifier.fillMaxWidth()
+            onClick = onNavigateToLobby,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
         ) {
             Text(text = stringResource(id = R.string.gamepage_result_back_to_lobby))
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = stringResource(id = R.string.gamepage_result_mistakes_title), fontSize = 20.sp)
-        Spacer(modifier = Modifier.height(10.dp))
-        mistakeDictionary.forEach { mistake ->
-            Text(
-                text = "${mistake.key} ${mistake.value} ${
-                    if (mistake.value > 1) stringResource(id = R.string.gamepage_result_mistakes)
-                    else stringResource(id = R.string.gamepage_result_mistake)
-                }",
-                fontSize = 16.sp
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+
+        if (playerFinalResults.isEmpty()) {
+            Text(text = stringResource(id = R.string.gamepage_result_loading))
+        } else {
+            Text(stringResource(R.string.gamepage_result_player_scores), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+            playerFinalResults.sortedByDescending { it.points }.forEachIndexed { index, player ->
+                Text(
+                    text = "${index + 1}. ${player.inGameName}: ${player.points} ${stringResource(id = R.string.gamepage_result_points)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(24.dp))
+        if (mistakePairs.isNotEmpty()){
+            Text(stringResource(R.string.gamepage_result_mistakes_summary), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+            mistakePairs.forEach { (term, count) ->
+                Text(
+                    text = "'$term': $count ${stringResource(if (count > 1) R.string.gamepage_result_mistakes else R.string.gamepage_result_mistake)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+        }
+        // TODO: Add comparison results and summary data similar to Vue if needed and data is available
     }
 }
 
 @Composable
-fun CountdownScreen(secondsOfCountdown: Int) {
+fun CountdownScreen(seconds: Int) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(Color.White.copy(alpha = 0.9f)), // Semi-transparent white background
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = secondsOfCountdown.toString(),
-            fontSize = 48.sp,
-            fontWeight = FontWeight.Bold,
+            text = seconds.toString(),
+            style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold),
             color = Color.Black
         )
     }
@@ -173,156 +198,149 @@ fun CountdownScreen(secondsOfCountdown: Int) {
 @Composable
 fun WritingScreen(
     currentTerm: String,
-    currentDefinition: String,
-    onDefinitionChange: (String) -> Unit,
+    userResponse: String,
+    onUserResponseChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    backgroundColor: Color
+    isWrong: Boolean
 ) {
+    val backgroundColor = if (isWrong) colorResource(id = R.color.incorrect_background) else Color.Transparent
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
             .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
+        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(180.dp))
         Text(
             text = currentTerm,
-            fontSize = 28.sp,
+            style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 30.dp, bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 24.dp)
         )
         TextField(
-            value = currentDefinition,
-            onValueChange = onDefinitionChange,
-            placeholder = { Text(text = stringResource(id = R.string.gamepage_writing_enter_definition)) },
+            value = userResponse,
+            onValueChange = onUserResponseChange,
+            label = { Text(stringResource(R.string.gamepage_writing_enter_definition)) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.None,
-                autoCorrectEnabled = false,
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Done
+            keyboardOptions = KeyboardOptions.Default.copy(
+                imeAction = ImeAction.Done,
+                capitalization = KeyboardCapitalization.Sentences
             ),
-            keyboardActions = KeyboardActions(
-                onDone = { onSubmit() }
-            )
+            keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+            modifier = Modifier.fillMaxWidth(0.8f),
+            isError = isWrong
         )
-        Button(
-            onClick = onSubmit,
-            modifier = Modifier
-                .padding(top = 16.dp)
-                .fillMaxWidth()
-        ) {
-            Text(text = stringResource(id = R.string.gamepage_writing_submit))
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onSubmit) {
+            Text(stringResource(R.string.gamepage_submit))
         }
     }
 }
 
-
 @Composable
 fun ConnectingScreen(
-    termDefinitionPairsQueueThisRound: List<TermDefinitionPair>,
-    onPairConnected: (term: String, definition: String) -> Unit, // Changed from gamePageModel
-    backgroundColor: Color
+    displayedTerms: List<TermDefinitionPair>,
+    displayedDefinitions: List<TermDefinitionPair>,
+    onTermSelected: (TermDefinitionPair) -> Unit,
+    onDefinitionSelected: (TermDefinitionPair) -> Unit,
+    selectedTerm: TermDefinitionPair?,
+    selectedDefinition: TermDefinitionPair?,
+    connectedCount: Int,
+    mistakesCount: Int,
+    totalPairsInRound: Int,
+    feedback: String? // "correct" or "incorrect"
 ) {
-    var selectedTermIndex by remember { mutableStateOf<Int?>(null) }
-    var selectedDefinitionIndex by remember { mutableStateOf<Int?>(null) }
-
-    // Get the first five pairs.
-    val termsToDisplay = termDefinitionPairsQueueThisRound.take(5)
-    // Shuffle the definitions for random order.
-    val definitionsShuffled = remember(termsToDisplay) { termsToDisplay.shuffled() }
+    val baseBackgroundColor = MaterialTheme.colorScheme.background
+    val feedbackColor = when (feedback) {
+        "correct" -> colorResource(id = R.color.correct_background)
+        "incorrect" -> colorResource(id = R.color.incorrect_background)
+        else -> baseBackgroundColor
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(feedbackColor)
             .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.Start
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(300.dp))
         Text(
-            text = stringResource(id = R.string.gamepage_connecting_game_title),
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 30.dp, bottom = 16.dp)
+            stringResource(R.string.gamepage_connecting_title),
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
         )
-        Row(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            ) {
-                itemsIndexed(termsToDisplay) { index, termDefinitionPair ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(4.dp)
-                            .clickable {
-                                selectedTermIndex = index
-                                if (selectedDefinitionIndex != null) {
-                                    val term = termsToDisplay[selectedTermIndex!!].term
-                                    val definition = definitionsShuffled[selectedDefinitionIndex!!].definition
-                                    onPairConnected(term, definition) // Use callback
-                                    selectedTermIndex = null
-                                    selectedDefinitionIndex = null
-                                }
-                            }
-                            .background(
-                                if (selectedTermIndex == index) Color.LightGray else Color.White
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            // Terms Column
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(stringResource(R.string.gamepage_connecting_terms), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                if (displayedTerms.isEmpty() && totalPairsInRound > 0 && connectedCount == totalPairsInRound) {
+                     Text(stringResource(R.string.gamepage_connecting_round_cleared), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
+                } else if (displayedTerms.isEmpty()) {
+                    Text(stringResource(R.string.gamepage_connecting_no_terms), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
+                } else {
+                    LazyColumn {
+                        items(displayedTerms, key = { it.term }) { termPair ->
+                            SelectableItem(
+                                text = termPair.term,
+                                isSelected = termPair.term == selectedTerm?.term,
+                                onClick = { onTermSelected(termPair) }
                             )
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = termDefinitionPair.term,
-                            fontSize = 16.sp
-                        )
+                        }
                     }
                 }
             }
 
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp)
-            ) {
-                itemsIndexed(definitionsShuffled) { index, termDefinitionPair ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(4.dp)
-                            .clickable {
-                                selectedDefinitionIndex = index
-                                if (selectedTermIndex != null) {
-                                    val term = termsToDisplay[selectedTermIndex!!].term
-                                    val definition = definitionsShuffled[selectedDefinitionIndex!!].definition
-                                    onPairConnected(term, definition) // Use callback
-                                    selectedTermIndex = null
-                                    selectedDefinitionIndex = null
-                                }
-                            }
-                            .background(
-                                if (selectedDefinitionIndex == index) Color.LightGray else Color.White
+            // Definitions Column
+            Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                Text(stringResource(R.string.gamepage_connecting_definitions), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                 if (displayedDefinitions.isEmpty() && totalPairsInRound > 0 && connectedCount == totalPairsInRound) {
+                    // Text("Round Cleared!", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) // Already shown in terms
+                } else if (displayedDefinitions.isEmpty()) {
+                     Text(stringResource(R.string.gamepage_connecting_no_definitions), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
+                } else {
+                    LazyColumn {
+                        items(displayedDefinitions, key = { it.definition }) { defPair ->
+                            SelectableItem(
+                                text = defPair.definition,
+                                isSelected = defPair.definition == selectedDefinition?.definition,
+                                onClick = { onDefinitionSelected(defPair) }
                             )
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = termDefinitionPair.definition,
-                            fontSize = 16.sp
-                        )
+                        }
                     }
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("${stringResource(R.string.gamepage_connecting_connected)}: $connectedCount / $totalPairsInRound", style = MaterialTheme.typography.bodyLarge)
+        Text("${stringResource(R.string.gamepage_connecting_mistakes)}: $mistakesCount", style = MaterialTheme.typography.bodyLarge)
+        val donePercentage = if (totalPairsInRound > 0) (connectedCount * 100 / totalPairsInRound) else 0
+        Text("${stringResource(R.string.gamepage_connecting_done)}: $donePercentage%", style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+fun SelectableItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .border(
+                width = 2.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                shape = MaterialTheme.shapes.medium
+            )
+            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
     }
 }

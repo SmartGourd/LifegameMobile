@@ -1,5 +1,9 @@
 package cz.zlehcito.model
 
+data class GetRaceGameResponse(
+    val game: RaceGame
+)
+
 data class RaceGame (
     val idString: String,
     val name: String,
@@ -12,15 +16,15 @@ data class RaceGame (
 
 data class RaceGameRoundState (
     val playerName: String,
-    val mistakeCount: Number,
-    val percentageDone: Number,
+    val mistakeCount: Int,
+    val percentageDone: Int,
 )
 
 data class TermDefinitionPair(val term: String, var definition: String)
 
 data class RaceGameInterRoundState (
-    val currentRound: Number,
-    val playerResult: List<RacePlayerResult>
+    val currentRound: Int,
+    val playerResults: List<RacePlayerResult>
 )
 
 data class RacePlayerResult (

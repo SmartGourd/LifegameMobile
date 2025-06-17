@@ -19,11 +19,6 @@ class LobbyViewModel : ViewModel() {
         WebSocketManager.registerHandler("GET_GAMES") { json ->
             _gamesList.value = parseGamesListJson(json.toString())
         }
-
-        if (WebSocketManager.isConnected()) {
-            sendSubscriptionPutLobbyRequest()
-            sendGetGamesRequest()
-        }
     }
 
     fun sendSubscriptionPutLobbyRequest() {
