@@ -14,6 +14,7 @@ import cz.zlehcito.model.StartRaceRoundResponse
 import cz.zlehcito.model.SubmitAnswerResponse
 import cz.zlehcito.model.TermDefinitionPair
 import cz.zlehcito.network.WebSocketManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -225,7 +226,7 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
     private fun startCountdownAndRound() {
         _showCountdown.value = true
         _countdownSeconds.value = COUNTDOWN_INITIAL_SECONDS
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             repeat(COUNTDOWN_INITIAL_SECONDS) {
                 delay(1000)
                 _countdownSeconds.value -= 1
