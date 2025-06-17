@@ -80,7 +80,8 @@ fun GamePage(
                     userResponse = writingUiState.userResponse,
                     onUserResponseChange = { viewModel.setWritingUserResponse(it) },
                     onSubmit = { viewModel.submitWritingAnswer() },
-                    isWrong = writingUiState.isWrongAnswer
+                    isWrong = writingUiState.isWrongAnswer,
+                    isCorrect = writingUiState.isCorrectAnswer
                 )
             }
             inputType == "Connecting" -> {
@@ -186,9 +187,14 @@ fun WritingScreen(
     userResponse: String,
     onUserResponseChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    isWrong: Boolean
+    isWrong: Boolean,
+    isCorrect: Boolean
 ) {
-    val backgroundColor = if (isWrong) colorResource(id = R.color.incorrect_background) else Color.Transparent
+    val backgroundColor = when {
+        isCorrect -> colorResource(id = R.color.correct_background)
+        isWrong -> colorResource(id = R.color.incorrect_background)
+        else -> Color.Transparent
+    }
 
     Column(
         modifier = Modifier

@@ -9,24 +9,28 @@ class WritingGameManager {
     data class UiState(
         val currentTerm: String? = null,
         val userResponse: String = "",
-        val isWrongAnswer: Boolean = false
+        val isWrongAnswer: Boolean = false,
+        val isCorrectAnswer: Boolean = false,
+        val correctDefinition: String? = null
     )
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState
 
     fun setCurrentTerm(term: String?) {
-        _uiState.value = _uiState.value.copy(currentTerm = term, userResponse = "", isWrongAnswer = false)
+        _uiState.value = _uiState.value.copy(currentTerm = term, userResponse = "", isWrongAnswer = false, isCorrectAnswer = false, correctDefinition = null)
     }
 
     fun setUserResponse(response: String) {
         _uiState.value = _uiState.value.copy(userResponse = response)
     }
 
-    fun setWrongAnswer(isWrong: Boolean, correctDefinition: String? = null) {
+    fun setAnswerResult(isCorrect: Boolean, correctDefinition: String? = null) {
         _uiState.value = _uiState.value.copy(
-            isWrongAnswer = isWrong,
-            userResponse = if (isWrong && correctDefinition != null) correctDefinition else _uiState.value.userResponse
+            isWrongAnswer = !isCorrect,
+            isCorrectAnswer = isCorrect,
+            correctDefinition = if (!isCorrect) correctDefinition else null,
+            userResponse = if (!isCorrect && correctDefinition != null) correctDefinition else _uiState.value.userResponse
         )
     }
 

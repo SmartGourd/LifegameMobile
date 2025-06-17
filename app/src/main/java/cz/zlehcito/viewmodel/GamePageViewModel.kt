@@ -120,7 +120,10 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
             viewModelScope.launch(Dispatchers.Default) {
                 val response = Gson().fromJson(json.toString(), SubmitAnswerResponse::class.java)
                 if (_inputType.value == "Writing") {
-                    writingGameManager.setWrongAnswer(!response.answerCorrect, if (!response.answerCorrect) response.termDefinitionPair.definition else null)
+                    writingGameManager.setAnswerResult(
+                        isCorrect = response.answerCorrect,
+                        correctDefinition = response.termDefinitionPair.definition
+                    )
                     writingGameManager.setCurrentTerm(response.termDefinitionPair.term)
                     if (response.answerCorrect && !response.endOfRound) {
                         sendRaceNewTermRequest()
@@ -132,13 +135,11 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                         connectingGameManager.setFeedback(null)
                     }
                     if (response.answerCorrect) {
-                        // _connecting_connectedCount.value += 1
                         val correctTerm = response.termDefinitionPair.term
                         val correctDefinition = response.termDefinitionPair.definition
                         unansweredPairsInCurrentRound.removeAll { it.term == correctTerm && it.definition == correctDefinition }
                         refreshDisplayedConnectingPairs()
                     } else {
-                        // _connecting_mistakesCount.value += 1
                         updateMistakePairs(response.termDefinitionPair.term)
                     }
                 }
