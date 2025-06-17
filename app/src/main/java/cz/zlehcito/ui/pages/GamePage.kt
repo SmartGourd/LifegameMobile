@@ -87,7 +87,7 @@ fun GamePage(
                     mistakesCount = writingUiState.mistakesCount
                 )
                 if (displayResults && writingUiState.mistakePairs.isNotEmpty()) {
-                    MistakePairsSection(mistakePairs = writingUiState.mistakePairs)
+                    MistakePairsSectionDetailed(mistakePairs = writingUiState.mistakePairs)
                 }
             }
             inputType == "Connecting" -> {
@@ -372,6 +372,19 @@ fun MistakePairsSection(mistakePairs: Map<String, Int>) {
     mistakePairs.forEach { (term, count) ->
         Text(
             text = "'$term': $count ${stringResource(if (count > 1) R.string.gamepage_result_mistakes else R.string.gamepage_result_mistake)}",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+fun MistakePairsSectionDetailed(mistakePairs: Map<String, Int>) {
+    Spacer(modifier = Modifier.height(24.dp))
+    Text(stringResource(R.string.gamepage_result_mistakes_summary), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+    mistakePairs.forEach { (term, count) ->
+        Text(
+            text = "'${term}': $count ${stringResource(if (count > 1) R.string.gamepage_result_mistakes else R.string.gamepage_result_mistake)}",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(vertical = 2.dp)
         )

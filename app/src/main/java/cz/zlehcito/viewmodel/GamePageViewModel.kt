@@ -152,6 +152,9 @@ class GamePageViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
                 _playerFinalResults.value = response.racePlayerResults
                 _displayResults.value = true
                 _showCountdown.value = false
+                if (_inputType.value == "Writing") {
+                    _mistakePairs.value = writingGameManager.uiState.value.mistakePairs
+                }
             }
         }
     }
